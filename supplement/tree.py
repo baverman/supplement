@@ -2,6 +2,9 @@ import ast
 
 from .fixer import fix
 
+UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
+
+
 class AstProvider(object):
     def __init__(self):
         self.cache = {}
@@ -22,7 +25,32 @@ class AstProvider(object):
 
         return tree
 
-UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
+
+class NodeProvider(object):
+    def get_node(self):
+        raise NotImplementedError()
+
+    def __getitem__(self, name):
+        try:
+            return self.nodes[name]
+        except AttributeError:
+            pass
+
+        self.nodes = NameExtractor().process(self.get_node())
+        return self.nodes[name]
+
+
+class ParentNodeProvider(NodeProvider):
+    def __init__(self, node, filename_getter):
+        self.node = node
+        self.filename_getter = filename_getter
+
+    def get_node(self):
+        return self.node
+
+    def get_filename(self):
+        return self.filename_getter.get_filename()
+
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
@@ -62,10 +90,3 @@ class NameExtractor(ast.NodeVisitor):
         self.attrs = {}
         self.generic_visit(node)
         return self.attrs
-
-
-def find_nodes_for_names(node, attrs):
-    static_attrs = NameExtractor().process(node)
-    for name, node in static_attrs.iteritems():
-        if name in attrs:
-            attrs[name].node = node

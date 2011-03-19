@@ -1,24 +1,28 @@
 from types import FunctionType, ClassType
 
 from .core import AttributeGetter
-from .tree import find_nodes_for_names
+from .tree import ParentNodeProvider
 
-class UnknownObject(object):
-    def __init__(self, module, scope):
-        self.module = module
-        self.scope = scope
+
+class Object(object):
+    def __init__(self, name, node_provider):
+        self.name = name
+        self.node_provider = node_provider
 
     def get_location(self):
-        return self.node[-1].lineno, self.module.get_filename()
+        return self.get_node().lineno, self.node_provider.get_filename()
+
+    def get_node(self):
+        return self.node_provider[self.name][-1]
 
 
-class FunctionObject(UnknownObject):
+class FunctionObject(Object):
     pass
 
 
-class ClassObject(UnknownObject, AttributeGetter):
-    def __init__(self, module, scope, cls):
-        UnknownObject.__init__(self, module, scope)
+class ClassObject(Object, AttributeGetter):
+    def __init__(self, name, node_provider, cls):
+        Object.__init__(self, name, node_provider)
         self.cls = cls
 
     def get_attributes(self):
@@ -27,22 +31,24 @@ class ClassObject(UnknownObject, AttributeGetter):
         except AttributeError:
             pass
 
-        self._attrs = {}
-        fill_dynamic_attributes(self.module, self, self.cls, self._attrs)
-        find_nodes_for_names(self.node[-1], self._attrs)
+        np = ParentNodeProvider(self.get_node(), self.node_provider)
+        self._attrs = get_dynamic_attributes(self.cls, np)
 
         return self._attrs
 
 
-def create_object(module, scope, obj, name):
+def create_object(name, obj, node_provider):
     if type(obj) == FunctionType:
-        return FunctionObject(module, scope)
+        return FunctionObject(name, node_provider)
 
     if type(obj) == ClassType:
-        return ClassObject(module, scope, obj)
+        return ClassObject(name, node_provider, obj)
 
-    return UnknownObject(module, scope)
+    return Object(name, node_provider)
 
-def fill_dynamic_attributes(module, scope, obj, attrs):
+def get_dynamic_attributes(obj, node_provider):
+    result = {}
     for name in dir(obj):
-        attrs[name] = create_object(module, scope, getattr(obj, name), name)
+        result[name] = create_object(name, getattr(obj, name), node_provider)
+
+    return result

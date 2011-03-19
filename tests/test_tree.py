@@ -53,8 +53,5 @@ class test:
 ''')
 
     line, filename = m['test']['test'].get_location()
-    a = m['test']['test']
-    print a.node
-
     assert line == 4
     assert filename == 'test.py'

@@ -41,20 +41,28 @@ class NodeProvider(object):
 
 
 class ParentNodeProvider(NodeProvider):
-    def __init__(self, node, filename_getter):
+    def __init__(self, node, parent):
         self.node = node
-        self.filename_getter = filename_getter
+        self.parent = parent
 
     def get_node(self):
         return self.node
 
     def get_filename(self):
-        return self.filename_getter.get_filename()
+        return self.parent.get_filename()
+
+    def get_project(self):
+        return self.parent.get_project()
 
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         self.attrs[node.name] = 'func', node
+
+    def visit_ImportFrom(self, node):
+        for n in node.names:
+            name = n.asname if n.asname else n.name
+            self.attrs[name] = 'imported', n.name, node
 
     def visit_ClassDef(self, node):
         self.attrs[node.name] = 'class', node
@@ -70,17 +78,17 @@ class NameExtractor(ast.NodeVisitor):
                 continue
             self.attrs[n.id] = 'assign', i, node.value, n
 
-    #def default(self, node):
-    #    print '  ' * self.level, type(node), vars(node)
-    #    self.level += 1
-    #    self.generic_visit(node)
-    #    self.level -= 1
-    #
-    #def __getattr__(self, name):
-    #    if name in ('_attrs'):
-    #        return object.__getattr__(self, name)
-    #
-    #    return self.default
+    def default(self, node):
+        print '  ' * self.level, type(node), vars(node)
+        self.level += 1
+        self.generic_visit(node)
+        self.level -= 1
+
+    def __getattr__(self, name):
+        if name in ('_attrs'):
+            return object.__getattr__(self, name)
+
+        return self.default
 
     def process(self, node):
         if not node:

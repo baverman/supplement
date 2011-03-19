@@ -55,3 +55,19 @@ class test:
     line, filename = m['test']['test'].get_location()
     assert line == 4
     assert filename == 'test.py'
+
+def test_imported_location():
+    p = Project('./')
+
+    create_module(p, 'toimport', '''
+test = 'test'
+''')
+
+    m = create_module(p, 'test', '''
+
+from toimport import test
+''')
+
+    line, filename = m['test'].get_location()
+    assert line == 2
+    assert filename == 'toimport.py'

@@ -14,6 +14,8 @@ def create_module(project, name, source):
     m.source = source
     module.__file__ = name + '.py'
 
+    project.module_provider.cache[name] = m
+
     return m
 
 class TestModule(Module):

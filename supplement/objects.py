@@ -10,10 +10,18 @@ class Object(object):
         self.node_provider = node_provider
 
     def get_location(self):
-        return self.get_node().lineno, self.node_provider.get_filename()
+        node = self.get_node()
+        ctx = node[0]
+
+        if ctx == 'imported':
+            name, inode = node[1], node[2]
+            module = self.node_provider.get_project().get_module(inode.module)
+            return module[name].get_location()
+        else:
+            return node[-1].lineno, self.node_provider.get_filename()
 
     def get_node(self):
-        return self.node_provider[self.name][-1]
+        return self.node_provider[self.name]
 
 
 class FunctionObject(Object):
@@ -31,7 +39,7 @@ class ClassObject(Object, AttributeGetter):
         except AttributeError:
             pass
 
-        np = ParentNodeProvider(self.get_node(), self.node_provider)
+        np = ParentNodeProvider(self.get_node()[-1], self.node_provider)
         self._attrs = get_dynamic_attributes(self.cls, np)
 
         return self._attrs

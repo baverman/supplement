@@ -4,8 +4,17 @@ from .objects import get_dynamic_attributes
 from .core import AttributeGetter
 from .tree import NodeProvider
 
+
 class ModuleProvider(object):
+    def __init__(self):
+        self.cache = {}
+
     def get(self, project, name):
+        try:
+            return self.cache[name]
+        except KeyError:
+            pass
+
         try:
             module = sys.modules[name]
         except KeyError:
@@ -15,7 +24,8 @@ class ModuleProvider(object):
             except ImportError:
                 return None
 
-        return Module(project, module)
+        m = self.cache[name] = Module(project, module)
+        return m
 
 
 class ModuleNodeProvider(NodeProvider):
@@ -27,6 +37,9 @@ class ModuleNodeProvider(NodeProvider):
 
     def get_filename(self):
         return self.module.get_filename()
+
+    def get_project(self):
+        return self.module.project
 
 
 class Module(AttributeGetter):

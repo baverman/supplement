@@ -1,7 +1,7 @@
 from types import FunctionType, ClassType
 
 from .core import AttributeGetter
-from .tree import NameExtractor
+from .tree import find_nodes_for_names
 
 class UnknownObject(object):
     def __init__(self, module, scope):
@@ -28,20 +28,11 @@ class ClassObject(UnknownObject, AttributeGetter):
             pass
 
         self._attrs = {}
-        self._fill_dynamic_attributes(self._attrs)
-        self._find_static_names(self._attrs)
+        fill_dynamic_attributes(self.module, self, self.cls, self._attrs)
+        find_nodes_for_names(self.node[-1], self._attrs)
 
         return self._attrs
 
-    def _fill_dynamic_attributes(self, attrs):
-        for name in dir(self.cls):
-            attrs[name] = create_object(self.module, self, getattr(self.cls, name), name)
-
-    def _find_static_names(self, attrs):
-        static_attrs = NameExtractor().process(self.node[-1])
-        for name, node in static_attrs.iteritems():
-            if name in attrs:
-                attrs[name].node = node
 
 def create_object(module, scope, obj, name):
     if type(obj) == FunctionType:
@@ -51,3 +42,7 @@ def create_object(module, scope, obj, name):
         return ClassObject(module, scope, obj)
 
     return UnknownObject(module, scope)
+
+def fill_dynamic_attributes(module, scope, obj, attrs):
+    for name in dir(obj):
+        attrs[name] = create_object(module, scope, getattr(obj, name), name)

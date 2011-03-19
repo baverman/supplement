@@ -62,3 +62,10 @@ class NameExtractor(ast.NodeVisitor):
         self.attrs = {}
         self.generic_visit(node)
         return self.attrs
+
+
+def find_nodes_for_names(node, attrs):
+    static_attrs = NameExtractor().process(node)
+    for name, node in static_attrs.iteritems():
+        if name in attrs:
+            attrs[name].node = node

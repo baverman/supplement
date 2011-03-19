@@ -1,8 +1,8 @@
 import sys
 
-from .objects import create_object
+from .objects import fill_dynamic_attributes
 from .core import AttributeGetter
-from .tree import NameExtractor
+from .tree import find_nodes_for_names
 
 class ModuleProvider(object):
     def get(self, project, name):
@@ -46,19 +46,7 @@ class Module(AttributeGetter):
             pass
 
         self._attrs = {}
-        self._fill_dynamic_attributes(self._attrs)
-        self._find_static_names(self._attrs)
+        fill_dynamic_attributes(self, self, self.module, self._attrs)
+        find_nodes_for_names(self.project.get_ast(self), self._attrs)
 
         return self._attrs
-
-    def _fill_dynamic_attributes(self, attrs):
-        for name in dir(self.module):
-            attrs[name] = create_object(self, self, getattr(self.module, name), name)
-
-    def _find_static_names(self, attrs):
-        ne = NameExtractor()
-        static_attrs = ne.process(self.project.get_ast(self))
-
-        for name, node in static_attrs.iteritems():
-            if name in attrs:
-                attrs[name].node = node

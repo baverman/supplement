@@ -71,3 +71,23 @@ from toimport import test
     line, filename = m['test'].get_location()
     assert line == 2
     assert filename == 'toimport.py'
+
+def test_super_method_location():
+    p = Project('./')
+
+    create_module(p, 'toimport', '''
+class Foo(object):
+    def foo(self):
+        pass
+''')
+
+    m = create_module(p, 'test', '''
+from toimport import Foo
+
+class Bar(Foo):
+    pass
+''')
+
+    line, filename = m['Bar']['foo'].get_location()
+    assert line == 3
+    assert filename == 'toimport.py'

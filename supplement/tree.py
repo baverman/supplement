@@ -48,8 +48,8 @@ class ParentNodeProvider(NodeProvider):
     def get_node(self):
         return self.node
 
-    def get_filename(self):
-        return self.parent.get_filename()
+    def get_filename(self, name):
+        return self.parent.get_filename(name)
 
     def get_project(self):
         return self.parent.get_project()

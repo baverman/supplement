@@ -35,7 +35,7 @@ class ModuleNodeProvider(NodeProvider):
     def get_node(self):
         return self.module.project.get_ast(self.module)
 
-    def get_filename(self):
+    def get_filename(self, name):
         return self.module.get_filename()
 
     def get_project(self):

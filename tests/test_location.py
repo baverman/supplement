@@ -1,10 +1,7 @@
-from supplement.project import Project
+from .helpers import pytest_funcarg__project
 
-from .helpers import create_module
-
-def test_function_node_location():
-    p = Project('./')
-    m = create_module(p, 'test', '''
+def test_function_node_location(project):
+    m = project.create_module('test', '''
 def test():
     pass
 
@@ -14,9 +11,8 @@ def test():
     assert line == 2
     assert filename == 'test.py'
 
-def test_assign_node_location():
-    p = Project('./')
-    m = create_module(p, 'test', '''
+def test_assign_node_location(project):
+    m = project.create_module('test', '''
 
 (test1,
     test2) = 5, 10
@@ -31,9 +27,8 @@ def test_assign_node_location():
     assert line == 4
     assert filename == 'test.py'
 
-def test_class_location():
-    p = Project('./')
-    m = create_module(p, 'test', '''
+def test_class_location(project):
+    m = project.create_module('test', '''
 
 class test:
     pass
@@ -43,9 +38,8 @@ class test:
     assert line == 3
     assert filename == 'test.py'
 
-def test_method_location():
-    p = Project('./')
-    m = create_module(p, 'test', '''
+def test_method_location(project):
+    m = project.create_module('test', '''
 
 class test:
     def test(self):
@@ -56,14 +50,12 @@ class test:
     assert line == 4
     assert filename == 'test.py'
 
-def test_imported_location():
-    p = Project('./')
-
-    create_module(p, 'toimport', '''
+def test_imported_location(project):
+    project.create_module('toimport', '''
 test = 'test'
 ''')
 
-    m = create_module(p, 'test', '''
+    m = project.create_module('test', '''
 
 from toimport import test
 ''')
@@ -72,16 +64,14 @@ from toimport import test
     assert line == 2
     assert filename == 'toimport.py'
 
-def test_super_method_location():
-    p = Project('./')
-
-    create_module(p, 'toimport', '''
+def test_super_method_location(project):
+    project.create_module('toimport', '''
 class Foo(object):
     def foo(self):
         pass
 ''')
 
-    m = create_module(p, 'test', '''
+    m = project.create_module('test', '''
 from toimport import Foo
 
 class Bar(Foo):

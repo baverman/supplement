@@ -26,7 +26,7 @@ def test_assist_for_module_names_without_match(project):
 
     assert result[0] == 'test'
 
-def test_assist_for_builin_names(project):
+def test_assist_for_builtin_names(project):
     result = do_assist(project, '''
         opened_files = []
         ope''')
@@ -60,3 +60,14 @@ def test_assist_for_star_imported_names(project):
         te''')
 
     assert result == ['test']
+
+
+def test_assist_for_function_names(project):
+    result = do_assist(project, '''
+        test1 = 1
+
+        def func(arg1, arg2):
+            test2 = 2
+            ''')
+
+    assert result[:5] == ['arg1', 'arg2', 'test2', 'func', 'test1']

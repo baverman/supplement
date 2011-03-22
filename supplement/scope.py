@@ -29,6 +29,8 @@ def get_block_end(table, lines):
                 break
 
             last_line = i
+    else:
+        last_line = len(lines) + 1
 
     return last_line
 

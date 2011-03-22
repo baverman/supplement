@@ -63,7 +63,6 @@ def test_nested_scopes():
         8: '',
         9: '',
         10: 'func2',
-        12: '',
     })
 
 def test_class_scope():
@@ -86,5 +85,18 @@ def test_class_scope():
         5: 'Cls',
         6: 'Cls.m2',
         7: 'Cls.m2',
-        9: '',
+        9: 'Cls.m2',
+    })
+
+def test_eof_scope():
+    source = cleantabs("""
+        def func(self):
+            pass
+
+    """)
+
+    check_scope(source, {
+        1: 'func',
+        2: 'func',
+        3: 'func',
     })

@@ -3,3 +3,6 @@
 /TODO
 
 *.pyc
+/build
+/dist
+/*.egg-info

@@ -41,14 +41,14 @@ def match_name_ctx(source, position):
     return True, match
 
 def assist(project, source, position, filename):
-    lineno = source.count('\n', 0, position) + 1
-
-    ast_nodes, fixed_source = fix(source)
-
-    scope = get_scope_at(fixed_source, lineno)
-
     matches, match = match_name_ctx(source, position)
 
-    names = get_scope_names(project, scope, ast_nodes)
+    if matches:
+        ast_nodes, fixed_source = fix(source)
+        lineno = source.count('\n', 0, position) + 1
+        scope = get_scope_at(fixed_source, lineno)
+        names = get_scope_names(project, scope, ast_nodes)
 
-    return collect_names(match, names)
+        return collect_names(match, names)
+
+    return []

@@ -5,6 +5,7 @@ from supplement.module import Module
 from supplement.project import Project
 
 def create_module(project, name, source):
+    source = cleantabs(source)
     code = compile(source, '<string>', 'exec')
     module = types.ModuleType(name)
     sys.modules[name] = module

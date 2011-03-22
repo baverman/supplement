@@ -77,3 +77,9 @@ class Scope(object):
             names.append(node.get_name())
 
         return '.'.join(reversed(names[:-1]))
+
+    def get_type(self):
+        return self.table.get_type()
+
+    def get_identifiers(self):
+        return self.table.get_identifiers()

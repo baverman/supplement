@@ -30,7 +30,7 @@ class Server(object):
 
     def run(self):
         while True:
-            if conn.poll():
+            if conn.poll(1):
                 try:
                     args = conn.recv()
                 except EOFError:

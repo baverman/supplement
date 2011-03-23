@@ -36,3 +36,6 @@ class Environment(object):
 
     def get_project_token(self, path):
         return self._call('get_project_token', path=path)
+
+    def assist(self, token, source, position, filename):
+        return self._call('assist', token, source, position, filename)

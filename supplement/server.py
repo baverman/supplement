@@ -1,13 +1,19 @@
 import sys
 import uuid
 
-class Client(object):
+from supplement.project import Project
+from supplement.assistant import assist
+
+class Server(object):
     def __init__(self, conn):
         self.conn = conn
         self.projects = {}
 
     def get_project_token(self, path):
-        return uuid.uuid1()
+        token = uuid.uuid1()
+        p = Project(path)
+        self.projects[token] = p
+        return token
 
     def process(self, name, args, kwargs):
         try:
@@ -18,6 +24,9 @@ class Client(object):
             result = e.__class__.__name__, str(e)
 
         return result, is_ok
+
+    def assist(self, token, source, position, filename):
+        return assist(self.projects[token], source, position, filename)
 
     def run(self):
         while True:
@@ -42,5 +51,5 @@ if __name__ == '__main__':
     from multiprocessing.connection import Listener
     listener = Listener(sys.argv[1])
     conn = listener.accept()
-    client = Client(conn)
-    client.run()
+    server = Server(conn)
+    server.run()

@@ -4,7 +4,7 @@ from .helpers import cleantabs
 
 def check_scope(source, names):
     def check(line, name):
-        result = get_scope_at(source, line).get_fullname()
+        result = get_scope_at(source, line).fullname
         assert result == name
 
     for line, name in names.iteritems():
@@ -15,7 +15,7 @@ def test_module_scope():
         test1 = 1
 
         test2 = 2
-    """), 2).get_fullname()
+    """), 2).fullname
 
     assert result == ''
 

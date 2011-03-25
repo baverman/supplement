@@ -20,6 +20,8 @@ class Server(object):
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
         except Exception, e:
+            import traceback
+            traceback.print_exc()
             is_ok = False
             result = e.__class__.__name__, str(e)
 

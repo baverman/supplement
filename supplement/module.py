@@ -18,11 +18,8 @@ class ModuleProvider(object):
         try:
             module = sys.modules[name]
         except KeyError:
-            try:
-                __import__(name)
-                module = sys.modules[name]
-            except ImportError:
-                return None
+            __import__(name)
+            module = sys.modules[name]
 
         m = self.cache[name] = Module(project, module)
         return m

@@ -99,34 +99,3 @@ class NameExtractor(ast.NodeVisitor):
         self.generic_visit(node)
         return self.attrs
 
-class StarImportsExtractor(ast.NodeVisitor):
-    def start_scope(self, name):
-        self.scope.append(name)
-
-    def end_scope(self):
-        del self.scope[-1]
-
-    def visit_FunctionDef(self, node):
-        self.start_scope(node.name)
-        self.generic_visit(node)
-        self.end_scope()
-
-    def visit_ImportFrom(self, node):
-        if any(n.name == '*' for n in node.names):
-            scope_name = '.'.join(self.scope)
-            self.imports.setdefault(scope_name, []).append(node.module)
-
-    def visit_ClassDef(self, node):
-        self.start_scope(node.name)
-        self.generic_visit(node)
-        self.end_scope()
-
-    def process(self, node):
-        if not node:
-            return {}
-
-        self.scope = []
-        self.imports = {}
-        self.generic_visit(node)
-
-        return self.imports

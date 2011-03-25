@@ -1,19 +1,9 @@
-from .fixer import fix
+from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
-from .tree import StarImportsExtractor
 
-def get_scope_names(project, scope, ast_nodes):
+def get_scope_names(project, scope):
     while scope:
-        ids = scope.get_identifiers()
-
-        if scope.table.has_import_star():
-            modules = StarImportsExtractor().process(ast_nodes)
-            scope_name = scope.get_fullname()
-            if scope_name in modules:
-                for m in modules[scope_name]:
-                    ids.extend(project.get_module(m).get_attributes().keys())
-
-        yield ids
+        yield scope.get_names(project)
         scope = scope.parent
 
     m = project.get_module('__builtin__')
@@ -43,11 +33,12 @@ def match_name_ctx(source, position):
 def assist(project, source, position, filename):
     matches, match = match_name_ctx(source, position)
 
+    source = sanitize_encoding(source)
     if matches:
         ast_nodes, fixed_source = fix(source)
         lineno = source.count('\n', 0, position) + 1
-        scope = get_scope_at(fixed_source, lineno)
-        names = get_scope_names(project, scope, ast_nodes)
+        scope = get_scope_at(fixed_source, lineno, ast_nodes)
+        names = get_scope_names(project, scope)
 
         return collect_names(match, names)
 

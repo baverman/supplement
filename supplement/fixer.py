@@ -9,6 +9,22 @@ def get_ws_len(line):
     else:
         return 0
 
+def sanitize_encoding(source):
+    if isinstance(source, unicode):
+        parts = source.split(u'\n', 3)
+        for i in range(2):
+            parts[i] = parts[i].replace(u'coding=', u'codang=').replace(u'coding:', u'codang:')
+
+        return u'\n'.join(parts)
+    else:
+        return source
+
+def force_byte_string(source):
+    if isinstance(source, unicode):
+        return source.encode('utf8')
+    else:
+        return source
+
 def fix(code, tries=4):
     try:
         return ast.parse(code), code

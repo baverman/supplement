@@ -1,10 +1,11 @@
-import symtable
+import ast
 
-def traverse_tree(root, parents):
-    yield root, parents
+UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
+def traverse_tree(root):
+    yield root
     for n in root.get_children():
-        for r in traverse_tree(n, parents + (root,)):
+        for r in traverse_tree(n):
             yield r
 
 def get_block_end(table, lines):
@@ -34,54 +35,131 @@ def get_block_end(table, lines):
 
     return last_line
 
-def get_scope_at(source, lineno):
-    table = symtable.symtable(source, '<string>', 'exec')
+def get_scope_at(source, lineno, ast_node=None):
+    ast_node = ast_node or ast.parse(source)
+    scope = Scope(ast_node, '', None)
 
     prev = None
-    for node, parents in traverse_tree(table, ()):
+    for node in traverse_tree(scope):
         if node.get_lineno() == lineno:
             break
 
         if node.get_lineno() > lineno:
-            node, parents = prev
+            node = prev
             break
 
-        prev = node, parents
+        prev = node
 
     lines = source.splitlines()
-    while parents:
+    while node.parent:
         end = get_block_end(node, lines)
         if lineno <= end:
             break
 
-        node, parents = parents[-1], parents[:-1]
+        node = node.parent
 
-    n = None
-    for p in parents + (node,):
-        n = Scope(p, n)
-
-    return n
+    return node
 
 
 class Scope(object):
-    def __init__(self, table, parent):
-        self.table = table
+    def __init__(self, node, name, parent):
+        self.node = node
+        self.name = name
         self.parent = parent
 
-    def get_name(self):
-        return self.table.get_name()
+        if parent and parent.fullname:
+            self.fullname = parent.fullname + '.' + name
+        else:
+            self.fullname = name
 
-    def get_fullname(self):
-        names = [self.get_name()]
-        node = self
-        while node.parent:
-            node = node.parent
-            names.append(node.get_name())
+    def get_lineno(self):
+        try:
+            return self.node.lineno
+        except AttributeError:
+            return 0
 
-        return '.'.join(reversed(names[:-1]))
+    def get_children(self):
+        try:
+            return self.children
+        except AttributeError:
+            pass
 
-    def get_type(self):
-        return self.table.get_type()
+        self.children = ScopeExtractor().process(self)
+        return self.children
 
-    def get_identifiers(self):
-        return self.table.get_identifiers()
+    def get_names(self, project):
+        try:
+            return self.names
+        except AttributeError:
+            pass
+
+        self.names, starred_imports = NameExtractor().process(self.node)
+        for m in starred_imports:
+            self.names.extend(project.get_module(m).get_attributes().keys())
+
+        return self.names
+
+
+class ScopeExtractor(ast.NodeVisitor):
+    def visit_FunctionDef(self, node):
+        self.children.append(Scope(node, node.name, self.scope))
+
+    def visit_ClassDef(self, node):
+        self.children.append(Scope(node, node.name, self.scope))
+
+    def process(self, scope):
+        self.children = []
+        self.scope = scope
+        self.generic_visit(scope.node)
+
+        return self.children
+
+
+class NameExtractor(ast.NodeVisitor):
+    def visit_FunctionDef(self, node):
+        self.names.append(node.name)
+
+    def visit_ImportFrom(self, node):
+        for n in node.names:
+            if n.name == '*':
+                self.starred_imports.append(node.module)
+            else:
+                self.names.append(n.asname if n.asname else n.name)
+
+    def visit_ClassDef(self, node):
+        self.names.append(node.name)
+
+    def visit_Assign(self, node):
+        if isinstance(node.targets[0], ast.Tuple):
+            targets = node.targets[0].elts
+        else:
+            targets = node.targets
+
+        for i, n in enumerate(targets):
+            if isinstance(n,  UNSUPPORTED_ASSIGNMENTS):
+                continue
+            self.names.append(n.id)
+
+    def visit_arguments(self, node):
+        for n in node.args:
+            self.names.append(n.id)
+
+    #def default(self, node):
+    #    print '  ' * self.level, type(node), vars(node)
+    #    self.level += 1
+    #    self.generic_visit(node)
+    #    self.level -= 1
+    #
+    #def __getattr__(self, name):
+    #    if name in ('_attrs'):
+    #        return object.__getattr__(self, name)
+    #
+    #    return self.default
+
+    def process(self, node):
+        #self.level = 0
+        self.starred_imports = []
+        self.names = []
+        self.generic_visit(node)
+
+        return self.names, self.starred_imports

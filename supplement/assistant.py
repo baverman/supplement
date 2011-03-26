@@ -10,10 +10,17 @@ def get_scope_names(project, scope):
     yield m.get_attributes().keys()
 
 def collect_names(match, names):
+    existing = set()
     result = []
     for name_list in names:
-        result.extend(sorted(r for r in name_list
-            if not match or ( r.startswith(match) and match != r )))
+        names_to_add = []
+        for r in name_list:
+            if r in existing: continue
+            if not match or ( r.startswith(match) and match != r ):
+                names_to_add.append(r)
+                existing.add(r)
+
+        result.extend(sorted(names_to_add))
 
     return result
 

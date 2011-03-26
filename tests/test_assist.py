@@ -71,6 +71,14 @@ def test_assist_for_function_names(project):
 
     assert result[:5] == ['arg1', 'arg2', 'test2', 'func', 'test1']
 
+def test_assist_should_return_only_uniq_names(project):
+    result = do_assist(project, '''
+        test = 1
+        test = 2
+        te''')
+
+    assert result == ['test']
+
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''
         test = 1

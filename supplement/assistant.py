@@ -24,29 +24,51 @@ def collect_names(match, names):
 
     return result
 
-def match_name_ctx(source, position):
-    match = ''
+def char_is_id(c):
+    return c == '_' or c.isalnum()
+
+def find_id(collected, source, position):
     i = position
     while i > 0:
         i -= 1
-        c = source[i]
-
-        if c != '_' and not c.isalnum():
+        if not char_is_id(source[i]):
             break
 
-    match = source[i+1:position]
-    return True, match
+    collected.insert(0, source[i+1:position])
+    if source[i] == '.' and i > 1 and char_is_id(source[i-1]):
+        return find_id, i
+
+    return None, i
+
+def get_line(source, lineno):
+    return source.splitlines()[lineno - 1]
+
+def get_context(source, position):
+    lineno = source.count('\n', 0, position) + 1
+
+    func = find_id
+    collected = []
+    while func:
+        func, position = func(collected, source, position)
+
+    line = get_line(source, lineno).strip()
+    if line.startswith('import'):
+        ctx_type = 'import'
+    else:
+        ctx_type = 'name'
+
+    return ctx_type, lineno, collected[:-1], collected[-1]
 
 def assist(project, source, position, filename):
-    matches, match = match_name_ctx(source, position)
+    ctx_type, lineno, ctx, match = get_context(source, position)
 
-    source = sanitize_encoding(source)
-    if matches:
+    if ctx_type == 'name':
+        source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
-        lineno = source.count('\n', 0, position) + 1
+
         scope = get_scope_at(fixed_source, lineno, ast_nodes)
         names = get_scope_names(project, scope)
+    elif ctx_type == 'import':
+        names = (project.get_possible_imports(ctx),)
 
-        return collect_names(match, names)
-
-    return []
+    return collect_names(match, names)

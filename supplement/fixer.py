@@ -57,4 +57,4 @@ def fix(code, tries=4):
                 result.append('')
 
     code = '\n'.join(result)
-    return fix(code, tries - 1), code
+    return fix(code, tries - 1)

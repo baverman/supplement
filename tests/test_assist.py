@@ -79,6 +79,16 @@ def test_assist_should_return_only_uniq_names(project):
 
     assert result == ['test']
 
+def test_assist_must_provide_package_names_in_import_statement(project):
+    result = do_assist(project, '''
+        import o''')
+
+    assert 'os' in result
+    assert 'operator' in result
+
+    all_start_with_o = all(r.startswith('o') for r in result)
+    assert all_start_with_o
+
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''
         test = 1

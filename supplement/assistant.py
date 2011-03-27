@@ -41,7 +41,10 @@ def find_id(collected, source, position):
     return None, i
 
 def get_line(source, lineno):
-    return source.splitlines()[lineno - 1]
+    try:
+        return source.splitlines()[lineno - 1]
+    except IndexError:
+        return ''
 
 def get_context(source, position):
     lineno = source.count('\n', 0, position) + 1
@@ -69,6 +72,6 @@ def assist(project, source, position, filename):
         scope = get_scope_at(fixed_source, lineno, ast_nodes)
         names = get_scope_names(project, scope)
     elif ctx_type == 'import':
-        names = (project.get_possible_imports(ctx),)
+        names = (project.get_possible_imports('.'.join(ctx)),)
 
     return collect_names(match, names)

@@ -89,6 +89,18 @@ def test_assist_must_provide_package_names_in_import_statement(project):
     all_start_with_o = all(r.startswith('o') for r in result)
     assert all_start_with_o
 
+def test_assist_must_provide_package_module_names_in_import_statement(project):
+    result = do_assist(project, '''
+        import multiprocessing.''')
+
+    assert 'connection' in result
+
+def test_assist_must_provide_module_names_in_import_statement_for_dynamic_packages(project):
+    result = do_assist(project, '''
+        import os.''')
+
+    assert 'path' in result
+
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''
         test = 1

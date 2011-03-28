@@ -101,11 +101,18 @@ def test_assist_must_provide_module_names_in_import_statement_for_dynamic_packag
 
     assert 'path' in result
 
-def test_assist_in_from_import(project):
+def test_assist_for_from(project):
     result = do_assist(project, '''
-        from multi''')
+        from os.pa''')
 
-    assert result == ['multiprocessing']
+    assert result == ['path']
+
+def test_assist_for_module_and_names_in_from_import(project):
+    result = do_assist(project, '''
+        from os import ''')
+
+    assert 'path' in result
+    assert 'walk' in result
 
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''

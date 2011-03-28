@@ -1,3 +1,5 @@
+import re
+
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
 
@@ -41,10 +43,14 @@ def find_id(collected, source, position):
     return None, i
 
 def get_line(source, lineno):
-    try:
-        return source.splitlines()[lineno - 1]
-    except IndexError:
-        return ''
+    lines = source.splitlines(True)
+    if lineno > len(lines):
+        lineno = len(lines)
+
+    return lines[lineno - 1], sum(map(len, lines[:lineno-1]))
+
+
+package_in_from_import_matcher = re.compile('from\s+(.+?)\s+import')
 
 def get_context(source, position):
     lineno = source.count('\n', 0, position) + 1
@@ -54,11 +60,21 @@ def get_context(source, position):
     while func:
         func, position = func(collected, source, position)
 
-    line = get_line(source, lineno).strip()
-    if line.startswith('import'):
+    line, line_pos = get_line(source, lineno)
+    stripped_line = line.lstrip()
+
+    ctx_type = 'none'
+    if stripped_line.startswith('import'):
         ctx_type = 'import'
-    elif line.startswith('from'):
-        pass
+    elif stripped_line.startswith('from'):
+        import_pos = line.find(' import ')
+        if import_pos >= 0 and line_pos + import_pos + 7 <= position:
+            match = package_in_from_import_matcher.search(line)
+            if match:
+                ctx_type = "from-import"
+                collected = [match.group(1), collected[-1]]
+        else:
+            ctx_type = 'from'
     else:
         ctx_type = 'name'
 
@@ -75,5 +91,13 @@ def assist(project, source, position, filename):
         names = get_scope_names(project, scope)
     elif ctx_type == 'import':
         names = (project.get_possible_imports('.'.join(ctx)),)
+    elif ctx_type == 'from':
+        names = (project.get_possible_imports('.'.join(ctx)),)
+    elif ctx_type == 'from-import':
+        names = (
+            project.get_module(ctx[0]).get_attributes().keys(),
+            project.get_possible_imports(ctx[0]))
+    elif ctx_type == 'none':
+        return []
 
     return collect_names(match, names)

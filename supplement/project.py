@@ -49,6 +49,6 @@ class Project(object):
                         result.append(name)
                 else:
                     if any(map(name.endswith, ('.py', '.so'))):
-                        result.append(name[:-3])
+                        result.append(name.rpartition('.')[0])
 
         return result

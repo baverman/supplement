@@ -37,7 +37,7 @@ def cleantabs(text):
 
     toremove = 999
     for l in lines:
-        stripped = l.strip()
+        stripped = l.lstrip()
         if stripped:
             toremove = min(toremove, len(l) - len(stripped))
 

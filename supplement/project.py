@@ -1,5 +1,4 @@
 import sys, os
-from types import ModuleType
 from os.path import abspath, join, isdir, isfile, exists
 
 from .tree import AstProvider
@@ -26,9 +25,8 @@ class Project(object):
             m = self.get_module(start)
 
             sub_package_prefix = start + '.'
-            for name in sys.modules:
-                if name.startswith(sub_package_prefix):
-                    print name, sub_package_prefix
+            for name, module in sys.modules.iteritems():
+                if module and name.startswith(sub_package_prefix):
                     result.append(name[len(sub_package_prefix):])
 
             try:

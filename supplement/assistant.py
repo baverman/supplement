@@ -57,6 +57,8 @@ def get_context(source, position):
     line = get_line(source, lineno).strip()
     if line.startswith('import'):
         ctx_type = 'import'
+    elif line.startswith('from'):
+        pass
     else:
         ctx_type = 'name'
 

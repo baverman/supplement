@@ -101,6 +101,12 @@ def test_assist_must_provide_module_names_in_import_statement_for_dynamic_packag
 
     assert 'path' in result
 
+def test_assist_in_from_import(project):
+    result = do_assist(project, '''
+        from multi''')
+
+    assert result == ['multiprocessing']
+
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''
         test = 1

@@ -23,7 +23,7 @@ class ModuleProvider(object):
             sys.path = project.paths
             try:
                 __import__(name)
-            except ImportError:
+            except:
                 sys.path = oldpath
                 raise
 

@@ -55,3 +55,4 @@ if __name__ == '__main__':
     conn = listener.accept()
     server = Server(conn)
     server.run()
+    conn.close()

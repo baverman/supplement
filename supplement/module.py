@@ -1,4 +1,5 @@
 import sys
+from os.path import dirname, basename, exists, join
 
 from .objects import get_dynamic_attributes
 from .core import AttributeGetter
@@ -18,11 +19,46 @@ class ModuleProvider(object):
         try:
             module = sys.modules[name]
         except KeyError:
-            __import__(name)
+            oldpath = sys.path
+            sys.path = project.paths
+            try:
+                __import__(name)
+            except ImportError:
+                sys.path = oldpath
+                raise
+
             module = sys.modules[name]
 
         m = self.cache[name] = Module(project, module)
         return m
+
+
+class PackageResolver(object):
+    def __init__(self):
+        self.cache = {}
+
+    def get(self, path):
+        try:
+            return self.cache[path]
+        except KeyError:
+            pass
+
+        packages = []
+        ppath = path
+        while True:
+            if exists(join(ppath, '__init__.py')):
+                packages.append(basename(ppath))
+            else:
+                break
+
+            newpath = dirname(ppath)
+            if newpath == ppath:
+                break
+
+            ppath = newpath
+
+        package = self.cache[path] = '.'.join(reversed(packages))
+        return package
 
 
 class ModuleNodeProvider(NodeProvider):

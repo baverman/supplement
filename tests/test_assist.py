@@ -61,6 +61,17 @@ def test_assist_for_star_imported_names(project):
 
     assert result == ['test']
 
+def test_assist_for_relative_star_imported_names(project):
+    project.create_module('package.toimport', '''
+        test = 1
+    ''')
+
+    result = do_assist(project, '''
+        from .toimport import *
+        te''', filename='package/test.py')
+
+    assert result == ['test']
+
 def test_assist_for_function_names(project):
     result = do_assist(project, '''
         test1 = 1
@@ -113,6 +124,40 @@ def test_assist_for_module_and_names_in_from_import(project):
 
     assert 'path' in result
     assert 'walk' in result
+
+def test_assist_for_relative_modules(project):
+    project.create_module('package.toimport', '''
+        test = 1
+    ''')
+
+    result = do_assist(project, '''
+        from .''', filename='package/test.py')
+
+    assert result == ['toimport']
+
+def test_assist_for_import_from_relative_modules(project):
+    project.create_module('package.toimport', '''
+        test = 1
+    ''')
+
+    result = do_assist(project, '''
+        from .toimport import ''', filename='package/test.py')
+
+    assert 'test' in result
+
+def test_assist_for_import_from_relative_modules_on_real_fs(project):
+    import os.path
+    root = os.path.dirname(os.path.dirname(__file__))
+
+    result = do_assist(project, '''
+        from .tree import ''', filename=os.path.join(root, 'supplement', 'test.py'))
+
+    assert 'NodeProvider' in result
+
+    result = do_assist(project, '''
+        from .helpers import cleantabs, ''', filename=os.path.join(root, 'tests', 'test.py'))
+
+    assert 'TestModule' in result
 
 def test_assist_for_object_attributes(project):
     project.create_module('toimport', '''

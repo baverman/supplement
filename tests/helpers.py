@@ -1,4 +1,4 @@
-import sys
+import sys, os.path
 import types
 
 from supplement.module import Module
@@ -17,6 +17,11 @@ def create_module(project, name, source):
     module.__file__ = name + '.py'
 
     project.module_provider.cache[name] = m
+
+    package_name, _, module_name = name.rpartition('.')
+    if package_name:
+        project.package_resolver.cache[os.path.abspath(package_name)] = package_name
+        sys.modules[package_name] = types.ModuleType(package_name)
 
     return m
 

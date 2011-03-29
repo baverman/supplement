@@ -87,7 +87,7 @@ class Scope(object):
         self.children = ScopeExtractor().process(self)
         return self.children
 
-    def get_names(self, project):
+    def get_names(self, project, filename=None):
         try:
             return self.names
         except AttributeError:
@@ -95,7 +95,7 @@ class Scope(object):
 
         self.names, starred_imports = NameExtractor().process(self.node)
         for m in starred_imports:
-            self.names.extend(project.get_module(m).get_attributes().keys())
+            self.names.extend(project.get_module(m, filename).get_attributes().keys())
 
         return self.names
 
@@ -122,7 +122,7 @@ class NameExtractor(ast.NodeVisitor):
     def visit_ImportFrom(self, node):
         for n in node.names:
             if n.name == '*':
-                self.starred_imports.append(node.module)
+                self.starred_imports.append('.' * node.level + node.module)
             else:
                 self.names.append(n.asname if n.asname else n.name)
 

@@ -3,9 +3,9 @@ import re
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
 
-def get_scope_names(project, scope):
+def get_scope_names(project, scope, filename):
     while scope:
-        yield scope.get_names(project)
+        yield scope.get_names(project, filename)
         scope = scope.parent
 
     m = project.get_module('__builtin__')
@@ -37,7 +37,7 @@ def find_id(collected, source, position):
             break
 
     collected.insert(0, source[i+1:position])
-    if source[i] == '.' and i > 1 and char_is_id(source[i-1]):
+    if source[i] == '.' and i > 1:
         return find_id, i
 
     return None, i
@@ -75,6 +75,7 @@ def get_context(source, position):
                 collected = [match.group(1), collected[-1]]
         else:
             ctx_type = 'from'
+            collected[:-1] = ['.' if r == '' else r for r in collected[:-1]]
     else:
         ctx_type = 'name'
 
@@ -88,15 +89,15 @@ def assist(project, source, position, filename):
         ast_nodes, fixed_source = fix(source)
 
         scope = get_scope_at(fixed_source, lineno, ast_nodes)
-        names = get_scope_names(project, scope)
+        names = get_scope_names(project, scope, filename)
     elif ctx_type == 'import':
-        names = (project.get_possible_imports('.'.join(ctx)),)
+        names = (project.get_possible_imports('.'.join(ctx), filename),)
     elif ctx_type == 'from':
-        names = (project.get_possible_imports('.'.join(ctx)),)
+        names = (project.get_possible_imports('.'.join(ctx), filename),)
     elif ctx_type == 'from-import':
         names = (
-            project.get_module(ctx[0]).get_attributes().keys(),
-            project.get_possible_imports(ctx[0]))
+            project.get_module(ctx[0], filename).get_attributes().keys(),
+            project.get_possible_imports(ctx[0], filename))
     elif ctx_type == 'none':
         return []
 

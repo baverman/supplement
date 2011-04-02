@@ -35,9 +35,11 @@ def get_block_end(table, lines):
 
     return last_line
 
-def get_scope_at(source, lineno, ast_node=None):
+def get_scope_at(project, source, lineno, filename=None, ast_node=None):
     ast_node = ast_node or ast.parse(source)
     scope = Scope(ast_node, '', None)
+    scope.project = project
+    scope.filename = filename
 
     prev = None
     for node in traverse_tree(scope):
@@ -67,8 +69,12 @@ class Scope(object):
         self.name = name
         self.parent = parent
 
+        if parent:
+            self.project = parent.project
+            self.filename = parent.filename
+
         if parent and parent.fullname:
-            self.fullname = parent.fullname + '.' + name
+                self.fullname = parent.fullname + '.' + name
         else:
             self.fullname = name
 
@@ -87,17 +93,21 @@ class Scope(object):
         self.children = ScopeExtractor().process(self)
         return self.children
 
-    def get_names(self, project, filename=None):
+    def get_names(self):
         try:
-            return self.names
+            return self._names
         except AttributeError:
             pass
 
-        self.names, starred_imports = NameExtractor().process(self.node)
+        self._names, starred_imports = NameExtractor().process(self.node)
         for m in starred_imports:
-            self.names.extend(project.get_module(m, filename).get_names())
+            for name in self.project.get_module(m, self.filename).get_names():
+                self._names[name] = 'ImportedName', m, name
 
-        return self.names
+        return self._names.keys()
+
+    def __contains__(self, name):
+        return name in self.get_names()
 
 
 class ScopeExtractor(ast.NodeVisitor):
@@ -117,21 +127,24 @@ class ScopeExtractor(ast.NodeVisitor):
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
-        self.names.append(node.name)
+        self.names[node.name] = 'FunctionName', node
 
     def visit_ImportFrom(self, node):
         for n in node.names:
+            module_name = '.' * node.level + node.module
             if n.name == '*':
-                self.starred_imports.append('.' * node.level + node.module)
+                self.starred_imports.append(module_name)
             else:
-                self.names.append(n.asname if n.asname else n.name)
+                name = n.asname if n.asname else n.name
+                self.names[name] = 'ImportedName', module_name, name
 
     def visit_Import(self, node):
         for n in node.names:
-            self.names.append(n.asname if n.asname else n.name)
+            name = n.asname if n.asname else n.name
+            self.names[name] = 'ModuleName', n.name
 
     def visit_ClassDef(self, node):
-        self.names.append(node.name)
+        self.names[node.name] = 'ClassName', node
 
     def visit_Assign(self, node):
         if isinstance(node.targets[0], ast.Tuple):
@@ -142,11 +155,11 @@ class NameExtractor(ast.NodeVisitor):
         for i, n in enumerate(targets):
             if isinstance(n,  UNSUPPORTED_ASSIGNMENTS):
                 continue
-            self.names.append(n.id)
+            self.names[n.id] = 'AssignedName', i, n
 
     def visit_arguments(self, node):
         for n in node.args:
-            self.names.append(n.id)
+            self.names[n.id] = 'ArgumentName', n
 
     #def default(self, node):
     #    print '  ' * self.level, type(node), vars(node)
@@ -163,7 +176,7 @@ class NameExtractor(ast.NodeVisitor):
     def process(self, node):
         #self.level = 0
         self.starred_imports = []
-        self.names = []
+        self.names = {}
         self.generic_visit(node)
 
         return self.names, self.starred_imports

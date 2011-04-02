@@ -1,17 +1,17 @@
 from supplement.scope import get_scope_at
 
-from .helpers import cleantabs
+from .helpers import cleantabs, pytest_funcarg__project
 
-def check_scope(source, names):
+def check_scope(project, source, names):
     def check(line, name):
-        result = get_scope_at(source, line).fullname
+        result = get_scope_at(project, source, line).fullname
         assert result == name
 
     for line, name in names.iteritems():
         check(line, name)
 
-def test_module_scope():
-    result = get_scope_at(cleantabs("""
+def test_module_scope(project):
+    result = get_scope_at(project, cleantabs("""
         test1 = 1
 
         test2 = 2
@@ -19,7 +19,7 @@ def test_module_scope():
 
     assert result == ''
 
-def test_function_scope():
+def test_function_scope(project):
     source = cleantabs("""
         test1 = 1
 
@@ -29,14 +29,14 @@ def test_function_scope():
         test2 = 2
     """)
 
-    check_scope(source, {
+    check_scope(project, source, {
         2: '',
         3: 'func',
         4: 'func',
         5: ''
     })
 
-def test_nested_scopes():
+def test_nested_scopes(project):
     source = cleantabs("""
 
         def func1():
@@ -52,7 +52,7 @@ def test_nested_scopes():
 
     """)
 
-    check_scope(source, {
+    check_scope(project, source, {
         1: '',
         2: 'func1',
         3: 'func1',
@@ -65,7 +65,7 @@ def test_nested_scopes():
         10: 'func2',
     })
 
-def test_class_scope():
+def test_class_scope(project):
     source = cleantabs("""
         class Cls(object):
 
@@ -78,7 +78,7 @@ def test_class_scope():
 
     """)
 
-    check_scope(source, {
+    check_scope(project, source, {
         1: 'Cls',
         2: 'Cls',
         3: 'Cls.m1',
@@ -88,14 +88,14 @@ def test_class_scope():
         9: 'Cls.m2',
     })
 
-def test_eof_scope():
+def test_eof_scope(project):
     source = cleantabs("""
         def func(self):
             pass
 
     """)
 
-    check_scope(source, {
+    check_scope(project, source, {
         1: 'func',
         2: 'func',
         3: 'func',

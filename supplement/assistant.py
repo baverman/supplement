@@ -3,9 +3,10 @@ import re
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
 
-def get_scope_names(project, scope, filename):
+def get_scope_names(scope):
+    project = scope.project
     while scope:
-        yield scope.get_names(project, filename)
+        yield scope.get_names()
         scope = scope.parent
 
     m = project.get_module('__builtin__')
@@ -88,8 +89,8 @@ def assist(project, source, position, filename):
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
 
-        scope = get_scope_at(fixed_source, lineno, ast_nodes)
-        names = get_scope_names(project, scope, filename)
+        scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
+        names = get_scope_names(scope)
     elif ctx_type == 'import':
         names = (project.get_possible_imports('.'.join(ctx), filename),)
     elif ctx_type == 'from':

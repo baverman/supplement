@@ -1,5 +1,7 @@
 import ast
 
+from .names import create_name
+
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
 def traverse_tree(root):
@@ -68,6 +70,7 @@ class Scope(object):
         self.node = node
         self.name = name
         self.parent = parent
+        self._attrs = {}
 
         if parent:
             self.project = parent.project
@@ -104,11 +107,20 @@ class Scope(object):
             for name in self.project.get_module(m, self.filename).get_names():
                 self._names[name] = 'ImportedName', m, name
 
-        return self._names.keys()
+        return self._names
 
     def __contains__(self, name):
         return name in self.get_names()
 
+    def __getitem__(self, name):
+        try:
+            return self._attrs[name]
+        except KeyError:
+            pass
+
+        node = self.get_names()[name]
+        obj = self._attrs[name] = create_name(node, self)
+        return obj
 
 class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):

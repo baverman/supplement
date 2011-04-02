@@ -2,6 +2,7 @@ import re
 
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
+from .evaluator import infer
 
 def get_scope_names(scope):
     project = scope.project
@@ -90,7 +91,10 @@ def assist(project, source, position, filename):
         ast_nodes, fixed_source = fix(source)
 
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
-        names = get_scope_names(scope)
+        if not ctx:
+            names = get_scope_names(scope)
+        else:
+            names = [infer('.'.join(ctx), scope).get_names()]
     elif ctx_type == 'import':
         names = (project.get_possible_imports('.'.join(ctx), filename),)
     elif ctx_type == 'from':

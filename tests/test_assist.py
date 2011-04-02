@@ -168,4 +168,4 @@ def test_assist_for_module_attributes(project):
         import toimport
         toimport.''')
 
-    assert result == ['test']
+    assert result[-1] == 'test'

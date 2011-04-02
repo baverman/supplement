@@ -58,6 +58,7 @@ class ClassObject(Object):
         Object.__init__(self, name, node)
         self.cls = cls
         self._attrs = {}
+        self.node_provider = CtxNodeProvider(self, self.node[-1])
 
     def get_names(self):
         try:
@@ -84,8 +85,7 @@ class ClassObject(Object):
 
         cls = self.get_names()[name]
         if cls is self.cls:
-            np = CtxNodeProvider(self.project, self.filename, self.node[-1])
-            obj = self._attrs[name] = create_object(name, cls.__dict__[name], np)
+            obj = self._attrs[name] = create_object(name, cls.__dict__[name], self.node_provider)
             return obj
         else:
             return self.project.get_module(cls.__module__)[cls.__name__][name]

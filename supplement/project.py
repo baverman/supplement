@@ -45,7 +45,7 @@ class Project(object):
                 paths = []
 
         for path in paths:
-            if not exists(path):
+            if not exists(path) or not isdir(path):
                 continue
 
             path = abspath(path)

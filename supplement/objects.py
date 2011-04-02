@@ -1,133 +1,111 @@
 from types import FunctionType, ClassType, TypeType
 
-from .core import AttributeGetter
-from .tree import ParentNodeProvider
-
-
-class FallbackAttributes(object):
-    def __init__(self, main, fallback):
-        self.main = main
-        self.fallback = fallback
-
-    def __getitem__(self, name):
-        try:
-            return self.main[name]
-        except KeyError:
-            pass
-
-        for f in self.fallback:
-            try:
-                return f[name]
-            except KeyError:
-                pass
-
-        raise KeyError(name)
-
-
-class FallbackNodeProvider(object):
-    def __init__(self, main, fallback):
-        self.main = main
-        self.fallback = fallback
-
-    def __getitem__(self, name):
-        try:
-            return self.main[name]
-        except KeyError:
-            pass
-
-        for f in self.fallback:
-            p = f.get_node_provider_for_childs()
-            try:
-                return p[name]
-            except KeyError:
-                pass
-
-        raise KeyError(name)
-
-    def get_filename(self, name):
-        try:
-            self.main[name]
-            return self.main.get_filename(name)
-        except KeyError:
-            pass
-
-        for f in self.fallback:
-            p = f.get_node_provider_for_childs()
-            try:
-                p[name]
-                return p.get_filename(name)
-            except KeyError:
-                pass
-
-        return None
-
+from .tree import CtxNodeProvider
 
 class Object(object):
-    def __init__(self, name, node_provider):
+    def __init__(self, name, node):
         self.name = name
-        self.node_provider = node_provider
+        self.node = node
 
     def get_location(self):
-        node = self.get_node()
-        ctx = node[0]
+        return self.node[-1].lineno, self.filename
 
-        if ctx == 'imported':
-            name, inode = node[1], node[2]
-            module = self.node_provider.get_project().get_module(inode.module)
-            return module[name].get_location()
-        else:
-            return node[-1].lineno, self.node_provider.get_filename(self.name)
+    def get_names(self):
+        return []
 
-    def get_node(self):
-        return self.node_provider[self.name]
+    def __contains__(self, name):
+        return False
 
-    def get_node_provider_for_childs(self):
+    def __getitem__(self, name):
+        raise KeyError(name)
+
+
+class ImportedObject(object):
+    def __init__(self, name, node):
+        self.name = name
+        self.node = node
+
+    def get_real_object(self):
         try:
-            return self.node_provider_for_childs
+            return self._real_object
         except AttributeError:
             pass
 
-        self.node_provider_for_childs = ParentNodeProvider(self.get_node()[-1], self.node_provider)
-        return self.node_provider_for_childs
+        name, inode = self.node[1], self.node[2]
+        module = self.project.get_module(inode.module, self.filename)
+        obj = self._real_object = module[name]
+        return obj
+
+    def get_location(self):
+        return self.get_real_object().get_location()
+
+    def get_names(self):
+        return self.get_real_object().get_names()
+
+    def __contains__(self, name):
+        return name in self.get_real_object()
+
+    def __getitem__(self, name):
+        return self.get_real_object()[name]
 
 
 class FunctionObject(Object):
     pass
 
 
-class ClassObject(Object, AttributeGetter):
-    def __init__(self, name, node_provider, cls):
-        Object.__init__(self, name, node_provider)
+class ClassObject(Object):
+    def __init__(self, name, node, cls):
+        Object.__init__(self, name, node)
         self.cls = cls
+        self._attrs = {}
 
-    def get_attributes(self):
+    def get_names(self):
         try:
-            return self._attrs
+            return self._names
         except AttributeError:
             pass
 
-        fallback = []
-        for base in self.cls.__bases__:
-            fallback.append(
-                self.node_provider.get_project().get_module(base.__module__)[base.__name__])
+        self._names = {}
+        for cls in (self.cls, ) + self.cls.__bases__:
+            for k in cls.__dict__:
+                if k not in self._names:
+                    self._names[k] = cls
 
-        np = FallbackNodeProvider(self.get_node_provider_for_childs(), fallback)
-        self._attrs = get_dynamic_attributes(self.cls, np)
-        return self._attrs
+        return self._names
 
+    def __contains__(self, name):
+        return name in self.get_names()
+
+    def __getitem__(self, name):
+        try:
+            return self._attrs[name]
+        except KeyError:
+            pass
+
+        cls = self.get_names()[name]
+        if cls is self.cls:
+            np = CtxNodeProvider(self.project, self.filename, self.node[-1])
+            obj = self._attrs[name] = create_object(name, cls.__dict__[name], np)
+            return obj
+        else:
+            return self.project.get_module(cls.__module__)[cls.__name__][name]
 
 def create_object(name, obj, node_provider):
-    if type(obj) == FunctionType:
-        return FunctionObject(name, node_provider)
+    node = node_provider[name]
 
-    if type(obj) in (ClassType, TypeType):
-        return ClassObject(name, node_provider, obj)
+    if node[0] == 'imported':
+        newobj = ImportedObject(name, node)
 
-    return Object(name, node_provider)
+    elif type(obj) == FunctionType:
+        newobj = FunctionObject(name, node)
 
-def get_dynamic_attributes(obj, node_provider):
-    result = {}
-    for name in dir(obj):
-        result[name] = create_object(name, getattr(obj, name), node_provider)
+    elif type(obj) in (ClassType, TypeType):
+        newobj = ClassObject(name, node, obj)
 
-    return result
+    else:
+        newobj = Object(name, node)
+
+    newobj.project = node_provider.get_project()
+    newobj.filename = node_provider.get_filename(name)
+
+    return newobj

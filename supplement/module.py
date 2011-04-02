@@ -1,8 +1,7 @@
 import sys
 from os.path import dirname, basename, exists, join
 
-from .objects import get_dynamic_attributes
-from .core import AttributeGetter
+from .objects import create_object
 from .tree import NodeProvider
 
 
@@ -75,11 +74,12 @@ class ModuleNodeProvider(NodeProvider):
         return self.module.project
 
 
-class Module(AttributeGetter):
+class Module(object):
     def __init__(self, project, module):
         self.module = module
         self.name = module.__name__
         self.project = project
+        self._attrs = {}
         self.node_provider = ModuleNodeProvider(self)
 
     def get_source(self):
@@ -97,11 +97,26 @@ class Module(AttributeGetter):
 
         return filename.replace('.pyc', '.py')
 
-    def get_attributes(self):
+    def get_names(self):
         try:
-            return self._attrs
+            return self._names
         except AttributeError:
             pass
 
-        self._attrs = get_dynamic_attributes(self.module, self.node_provider)
-        return self._attrs
+        names = self._names = set(dir(self.module))
+        return names
+
+    def __contains__(self, name):
+        return name in self.get_names()
+
+    def __getitem__(self, name):
+        try:
+            return self._attrs[name]
+        except KeyError:
+            if name not in self:
+                raise
+
+        obj = self._attrs[name] = create_object(
+            name, getattr(self.module, name), self.node_provider)
+
+        return obj

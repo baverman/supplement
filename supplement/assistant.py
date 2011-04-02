@@ -9,7 +9,7 @@ def get_scope_names(project, scope, filename):
         scope = scope.parent
 
     m = project.get_module('__builtin__')
-    yield m.get_attributes().keys()
+    yield m.get_names()
 
 def collect_names(match, names):
     existing = set()
@@ -96,7 +96,7 @@ def assist(project, source, position, filename):
         names = (project.get_possible_imports('.'.join(ctx), filename),)
     elif ctx_type == 'from-import':
         names = (
-            project.get_module(ctx[0], filename).get_attributes().keys(),
+            project.get_module(ctx[0], filename).get_names(),
             project.get_possible_imports(ctx[0], filename))
     elif ctx_type == 'none':
         return []

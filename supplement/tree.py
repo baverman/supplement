@@ -40,19 +40,20 @@ class NodeProvider(object):
         return self.nodes[name]
 
 
-class ParentNodeProvider(NodeProvider):
-    def __init__(self, node, parent):
+class CtxNodeProvider(NodeProvider):
+    def __init__(self, project, filename, node):
         self.node = node
-        self.parent = parent
+        self.project = project
+        self.filename = filename
 
     def get_node(self):
         return self.node
 
     def get_filename(self, name):
-        return self.parent.get_filename(name)
+        return self.filename
 
     def get_project(self):
-        return self.parent.get_project()
+        return self.project
 
 
 class NameExtractor(ast.NodeVisitor):

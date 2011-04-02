@@ -159,7 +159,7 @@ def test_assist_for_import_from_relative_modules_on_real_fs(project):
 
     assert 'TestModule' in result
 
-def test_assist_for_object_attributes(project):
+def test_assist_for_module_attributes(project):
     project.create_module('toimport', '''
         test = 1
     ''')

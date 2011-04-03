@@ -41,6 +41,25 @@ class ModuleName(object):
 
         return self.project.get_module(self.name, self.filename)[name]
 
+
+class ImportedName(object):
+    def __init__(self, module_name, name):
+        self.module_name = module_name
+        self.name = name
+
+    def get_object(self):
+        return self.project.get_module(self.module_name, self.filename)[self.name]
+
+    def get_names(self):
+        return self.get_object().get_names()
+
+    def __getitem__(self, name):
+        return self.get_object()[name]
+
+    def __contains__(self, name):
+        return name in self.get_object()
+
+
 def create_name(node, owner):
     obj = node[0](*node[1:])
     obj.project = owner.project

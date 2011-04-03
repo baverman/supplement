@@ -1,6 +1,6 @@
 import ast
 
-from .names import create_name, ModuleName
+from .names import create_name, ModuleName, ImportedName
 
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
@@ -105,7 +105,7 @@ class Scope(object):
         self._names, starred_imports = NameExtractor().process(self.node)
         for m in starred_imports:
             for name in self.project.get_module(m, self.filename).get_names():
-                self._names[name] = 'ImportedName', m, name
+                self._names[name] = ImportedName, m, name
 
         return self._names
 
@@ -148,7 +148,7 @@ class NameExtractor(ast.NodeVisitor):
                 self.starred_imports.append(module_name)
             else:
                 name = n.asname if n.asname else n.name
-                self.names[name] = 'ImportedName', module_name, name
+                self.names[name] = ImportedName, module_name, name
 
     def visit_Import(self, node):
         for n in node.names:

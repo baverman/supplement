@@ -90,6 +90,45 @@ class ClassObject(Object):
         else:
             return self.project.get_module(cls.__module__)[cls.__name__][name]
 
+
+class InstanceObject(Object):
+    def __init__(self, name, node, obj):
+        Object.__init__(self, name, node)
+        self.obj = obj
+        self._attrs = {}
+        self.node_provider = CtxNodeProvider(self, self.node[-1])
+
+    def get_names(self):
+        try:
+            return self._names
+        except AttributeError:
+            pass
+
+        self._names = {}
+        for cls in (self.obj, self.obj.__class__) + self.obj.__class__.__bases__:
+            for k in getattr(cls, '__dict__', []):
+                if k not in self._names:
+                    self._names[k] = cls
+
+        return self._names
+
+    def __contains__(self, name):
+        return name in self.get_names()
+
+    def __getitem__(self, name):
+        try:
+            return self._attrs[name]
+        except KeyError:
+            pass
+
+        obj = self.get_names()[name]
+        if obj is self.obj:
+            obj = self._attrs[name] = create_object(name, obj.__dict__[name], self.node_provider)
+            return obj
+        else:
+            return self.project.get_module(obj.__module__)[obj.__name__][name]
+
+
 def create_object(name, obj, node_provider):
     node = node_provider[name]
 
@@ -103,7 +142,7 @@ def create_object(name, obj, node_provider):
         newobj = ClassObject(name, node, obj)
 
     else:
-        newobj = Object(name, node)
+        newobj = InstanceObject(name, node, obj)
 
     newobj.project = node_provider.get_project()
     newobj.filename = node_provider.get_filename(name)

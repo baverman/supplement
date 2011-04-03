@@ -187,3 +187,15 @@ def test_assist_for_dotted_module_attributes(project):
         package.toimport.''')
 
     assert result == ['__builtins__', '__doc__', '__file__', '__name__', 'test']
+
+def test_assist_for_imported_names_attributes(project):
+    project.create_module('toimport', '''
+        test = "string"
+    ''')
+
+    result = do_assist(project, '''
+        from toimport import test
+        test.''')
+
+    assert 'lower' in result
+    assert 'isdigit' in result

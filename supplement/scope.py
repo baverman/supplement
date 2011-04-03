@@ -1,6 +1,6 @@
 import ast
 
-from .names import create_name
+from .names import create_name, ModuleName
 
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
@@ -152,8 +152,13 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_Import(self, node):
         for n in node.names:
-            name = n.asname if n.asname else n.name
-            self.names[name] = 'ModuleName', n.name
+            if n.asname:
+                self.names[n.asname] = ModuleName, n.name
+            else:
+                name, _, tail = n.name.partition('.')
+                self.names[name] = ModuleName, name, set()
+                if tail:
+                    self.additional_imports.setdefault(name, []).append(tail)
 
     def visit_ClassDef(self, node):
         self.names[node.name] = 'ClassName', node
@@ -188,7 +193,14 @@ class NameExtractor(ast.NodeVisitor):
     def process(self, node):
         #self.level = 0
         self.starred_imports = []
+        self.additional_imports = {}
         self.names = {}
         self.generic_visit(node)
+
+        for k, v in self.additional_imports.iteritems():
+            if self.names[k][0] is not ModuleName:
+                continue
+
+            self.names[k][2].update(v)
 
         return self.names, self.starred_imports

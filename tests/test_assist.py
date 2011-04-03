@@ -179,11 +179,11 @@ def test_assist_for_dotted_module_attributes(project):
         import package.toimport
         package.''')
 
-    assert result == ['toimport']
+    assert result == ['__doc__', '__name__', 'toimport']
 
 
     result = do_assist(project, '''
         import package.toimport
         package.toimport.''')
 
-    assert result == ['test']
+    assert result == ['__builtins__', '__doc__', '__file__', '__name__', 'test']

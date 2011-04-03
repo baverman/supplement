@@ -60,6 +60,16 @@ class ClassObject(Object):
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
 
+    def collect_names(self, cls, names, collected_classes, level):
+        for k in cls.__dict__:
+            if k not in names or names[k][1] > level:
+                names[k] = cls, level
+
+        collected_classes.add(cls)
+        for cls in cls.__bases__:
+            if cls not in collected_classes:
+                self.collect_names(cls, names, collected_classes, level + 1)
+
     def get_names(self):
         try:
             return self._names
@@ -67,11 +77,7 @@ class ClassObject(Object):
             pass
 
         self._names = {}
-        for cls in (self.cls, ) + self.cls.__bases__:
-            for k in cls.__dict__:
-                if k not in self._names:
-                    self._names[k] = cls
-
+        self.collect_names(self.cls, self._names, set(), 0)
         return self._names
 
     def __contains__(self, name):
@@ -83,7 +89,7 @@ class ClassObject(Object):
         except KeyError:
             pass
 
-        cls = self.get_names()[name]
+        cls = self.get_names()[name][0]
         if cls is self.cls:
             obj = self._attrs[name] = create_object(name, cls.__dict__[name], self.node_provider)
             return obj

@@ -104,19 +104,27 @@ class InstanceObject(Object):
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
 
-    def get_names(self):
+    def get_class(self):
         try:
-            return self._names
+            return self._class
         except AttributeError:
             pass
 
-        self._names = {}
-        for cls in (self.obj, self.obj.__class__) + self.obj.__class__.__bases__:
-            for k in getattr(cls, '__dict__', []):
-                if k not in self._names:
-                    self._names[k] = cls
+        cls = self.obj.__class__
+        self._class = self.project.get_module(cls.__module__)[cls.__name__]
+        return self._class
 
-        return self._names
+    def get_names(self):
+        all_names = set(self.get_class().get_names())
+        try:
+            names = self._names
+        except AttributeError:
+            names = self._names = set()
+            for k in getattr(self.obj, '__dict__', []):
+                self._names.add(k)
+
+        all_names.update(names)
+        return all_names
 
     def __contains__(self, name):
         return name in self.get_names()
@@ -127,12 +135,11 @@ class InstanceObject(Object):
         except KeyError:
             pass
 
-        obj = self.get_names()[name]
-        if obj is self.obj:
-            obj = self._attrs[name] = create_object(name, obj.__dict__[name], self.node_provider)
+        if name in self.get_names() and name in self._names:
+            obj = self._attrs[name] = create_object(name, self.obj.__dict__[name], self.node_provider)
             return obj
         else:
-            return self.project.get_module(obj.__module__)[obj.__name__][name]
+            return self.get_class()[name]
 
 
 def create_object(name, obj, node_provider):

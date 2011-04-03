@@ -168,7 +168,7 @@ def test_assist_for_module_attributes(project):
         import toimport
         toimport.''')
 
-    assert result[-1] == 'test'
+    assert result == ['__builtins__', '__doc__', '__file__', '__name__', 'test']
 
 def test_assist_for_dotted_module_attributes(project):
     project.create_module('package.toimport', '''

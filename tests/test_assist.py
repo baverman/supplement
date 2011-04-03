@@ -169,3 +169,21 @@ def test_assist_for_module_attributes(project):
         toimport.''')
 
     assert result[-1] == 'test'
+
+def test_assist_for_dotted_module_attributes(project):
+    project.create_module('package.toimport', '''
+        test = 1
+    ''')
+
+    result = do_assist(project, '''
+        import package.toimport
+        package.''')
+
+    assert result == ['toimport']
+
+
+    result = do_assist(project, '''
+        import package.toimport
+        package.toimport.''')
+
+    assert result == ['test']

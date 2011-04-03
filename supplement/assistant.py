@@ -65,23 +65,25 @@ def get_context(source, position):
     line, line_pos = get_line(source, lineno)
     stripped_line = line.lstrip()
 
+    ctx, match = '.'.join(collected[:-1]), collected[-1]
+
     ctx_type = 'none'
     if stripped_line.startswith('import'):
         ctx_type = 'import'
     elif stripped_line.startswith('from'):
         import_pos = line.find(' import ')
         if import_pos >= 0 and line_pos + import_pos + 7 <= position:
-            match = package_in_from_import_matcher.search(line)
-            if match:
+            m = package_in_from_import_matcher.search(line)
+            if m:
                 ctx_type = "from-import"
-                collected = [match.group(1), collected[-1]]
+                ctx = m.group(1)
         else:
             ctx_type = 'from'
-            collected[:-1] = ['.' if r == '' else r for r in collected[:-1]]
+            ctx = '.'.join('.' if r == '' else r for r in collected[:-1])
     else:
         ctx_type = 'name'
 
-    return ctx_type, lineno, collected[:-1], collected[-1]
+    return ctx_type, lineno, ctx, match
 
 def assist(project, source, position, filename):
     ctx_type, lineno, ctx, match = get_context(source, position)
@@ -94,15 +96,15 @@ def assist(project, source, position, filename):
         if not ctx:
             names = get_scope_names(scope)
         else:
-            names = [infer('.'.join(ctx), scope).get_names()]
+            names = [infer(ctx, scope).get_names()]
     elif ctx_type == 'import':
-        names = (project.get_possible_imports('.'.join(ctx), filename),)
+        names = (project.get_possible_imports(ctx, filename),)
     elif ctx_type == 'from':
-        names = (project.get_possible_imports('.'.join(ctx), filename),)
+        names = (project.get_possible_imports(ctx, filename),)
     elif ctx_type == 'from-import':
         names = (
-            project.get_module(ctx[0], filename).get_names(),
-            project.get_possible_imports(ctx[0], filename))
+            project.get_module(ctx, filename).get_names(),
+            project.get_possible_imports(ctx, filename))
     elif ctx_type == 'none':
         return []
 

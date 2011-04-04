@@ -3,8 +3,7 @@ from types import FunctionType, ClassType, TypeType
 from .tree import CtxNodeProvider
 
 class Object(object):
-    def __init__(self, name, node):
-        self.name = name
+    def __init__(self, node):
         self.node = node
 
     def get_location(self):
@@ -21,8 +20,7 @@ class Object(object):
 
 
 class ImportedObject(object):
-    def __init__(self, name, node):
-        self.name = name
+    def __init__(self, node):
         self.node = node
 
     def get_real_object(self):
@@ -54,8 +52,8 @@ class FunctionObject(Object):
 
 
 class ClassObject(Object):
-    def __init__(self, name, node, cls):
-        Object.__init__(self, name, node)
+    def __init__(self, node, cls):
+        Object.__init__(self, node)
         self.cls = cls
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
@@ -91,15 +89,16 @@ class ClassObject(Object):
 
         cls = self.get_names()[name][0]
         if cls is self.cls:
-            obj = self._attrs[name] = create_object(name, cls.__dict__[name], self.node_provider)
+            obj = self._attrs[name] = create_object(self, cls.__dict__[name],
+                self.node_provider[name])
             return obj
         else:
             return self.project.get_module(cls.__module__)[cls.__name__][name]
 
 
 class InstanceObject(Object):
-    def __init__(self, name, node, obj):
-        Object.__init__(self, name, node)
+    def __init__(self, node, obj):
+        Object.__init__(self, node)
         self.obj = obj
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
@@ -136,28 +135,29 @@ class InstanceObject(Object):
             pass
 
         if name in self.get_names() and name in self._names:
-            obj = self._attrs[name] = create_object(name, self.obj.__dict__[name], self.node_provider)
+            obj = self._attrs[name] = create_object(self, self.obj.__dict__[name],
+                self.node_provider[name])
             return obj
         else:
             return self.get_class()[name]
 
 
-def create_object(name, obj, node_provider):
-    node = node_provider[name]
+def create_object(owner, obj, node=None):
+    node = node or ('undefined', None)
 
     if node[0] == 'imported':
-        newobj = ImportedObject(name, node)
+        newobj = ImportedObject(node)
 
     elif type(obj) == FunctionType:
-        newobj = FunctionObject(name, node)
+        newobj = FunctionObject(node)
 
     elif type(obj) in (ClassType, TypeType):
-        newobj = ClassObject(name, node, obj)
+        newobj = ClassObject(node, obj)
 
     else:
-        newobj = InstanceObject(name, node, obj)
+        newobj = InstanceObject(node, obj)
 
-    newobj.project = node_provider.get_project()
-    newobj.filename = node_provider.get_filename(name)
+    newobj.project = owner.project
+    newobj.filename = owner.filename
 
     return newobj

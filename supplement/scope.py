@@ -122,6 +122,25 @@ class Scope(object):
         obj = self._attrs[name] = create_name(node, self)
         return obj
 
+
+class StaticScope(object):
+    def __init__(self, fullname, project, filename=None):
+        self._names = {}
+        self.parent = None
+        self.fullname = fullname
+        self.project = project
+        self.filename = filename
+
+    def get_names(self):
+        return self._names
+
+    def __contains__(self, name):
+        return name in self._names
+
+    def __getitem__(self, name):
+        return self._names[name]
+
+
 class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         self.children.append(Scope(node, node.name, self.scope))

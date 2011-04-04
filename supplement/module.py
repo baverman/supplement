@@ -67,12 +67,6 @@ class ModuleNodeProvider(NodeProvider):
     def get_node(self):
         return self.module.project.get_ast(self.module)
 
-    def get_filename(self, name):
-        return self.module.get_filename()
-
-    def get_project(self):
-        return self.module.project
-
 
 class Module(object):
     def __init__(self, project, module):
@@ -83,10 +77,11 @@ class Module(object):
         self.node_provider = ModuleNodeProvider(self)
 
     def get_source(self):
-        filename = self.get_filename()
+        filename = self.filename
         return filename and open(filename).read()
 
-    def get_filename(self):
+    @property
+    def filename(self):
         try:
             filename = self.module.__file__
         except AttributeError:
@@ -116,7 +111,7 @@ class Module(object):
             if name not in self:
                 raise
 
-        obj = self._attrs[name] = create_object(
-            name, getattr(self.module, name), self.node_provider)
+        obj = self._attrs[name] = create_object(self,
+            getattr(self.module, name), self.node_provider[name])
 
         return obj

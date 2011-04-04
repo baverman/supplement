@@ -52,12 +52,6 @@ class CtxNodeProvider(NodeProvider):
     def get_node(self):
         return self.node
 
-    def get_filename(self, name):
-        return self.ctx.filename
-
-    def get_project(self):
-        return self.ctx.project
-
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):

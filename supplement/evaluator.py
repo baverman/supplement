@@ -1,5 +1,7 @@
 import ast
 
+from .objects import create_object
+
 def get_name(name, scope):
     project = scope.project
 
@@ -38,8 +40,11 @@ class Evaluator(ast.NodeVisitor):
     def visit_Load(self, node):
         self.ops.pop()()
 
+    def visit_Str(self, node):
+        self.stack.append(create_object(self.scope, node.s))
+
     def process(self, tree, scope):
-        #self.level = 0
+        self.level = 0
         self.scope = scope
         self.ops = []
         self.stack = []
@@ -47,14 +52,14 @@ class Evaluator(ast.NodeVisitor):
 
         return self.stack[-1]
 
-    #def default(self, node):
-    #    print '  ' * self.level, type(node), vars(node)
-    #    self.level += 1
-    #    self.generic_visit(node)
-    #    self.level -= 1
-    #
-    #def __getattr__(self, name):
-    #    if name in ('_attrs'):
-    #        return object.__getattr__(self, name)
-    #
-    #    return self.default
+    def default(self, node):
+        print '  ' * self.level, type(node), vars(node)
+        self.level += 1
+        self.generic_visit(node)
+        self.level -= 1
+
+    def __getattr__(self, name):
+        if name in ('_attrs'):
+            return object.__getattr__(self, name)
+
+        return self.default

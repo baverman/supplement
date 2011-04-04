@@ -1,7 +1,7 @@
-from .helpers import pytest_funcarg__project
-
 from supplement.evaluator import infer
 from supplement.scope import StaticScope
+
+from .helpers import pytest_funcarg__project
 
 def pytest_funcarg__scope(request):
     project = pytest_funcarg__project(request)

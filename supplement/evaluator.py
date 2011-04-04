@@ -18,27 +18,13 @@ def infer(string, scope):
     return Evaluator().process(tree, scope)
 
 class Evaluator(ast.NodeVisitor):
-    def name_op(self):
-        name = self.stack.pop()
-        self.stack.append(get_name(name, self.scope))
-
-    def attr_op(self):
-        obj = self.stack.pop()
-        attr = self.stack.pop()
-        self.stack.append(obj[attr])
-
     def visit_Name(self, node):
-        self.ops.append(self.name_op)
-        self.stack.append(node.id)
-        self.generic_visit(node)
+        self.stack.append(get_name(node.id, self.scope))
 
     def visit_Attribute(self, node):
-        self.ops.append(self.attr_op)
-        self.stack.append(node.attr)
-        self.generic_visit(node)
-
-    def visit_Load(self, node):
-        self.ops.pop()()
+        self.visit(node.value)
+        obj = self.stack.pop()
+        self.stack.append(obj[node.attr])
 
     def visit_Str(self, node):
         self.stack.append(create_object(self.scope, node.s))

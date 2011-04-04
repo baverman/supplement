@@ -43,6 +43,18 @@ class Evaluator(ast.NodeVisitor):
     def visit_Str(self, node):
         self.stack.append(create_object(self.scope, node.s))
 
+    def visit_Num(self, node):
+        self.stack.append(create_object(self.scope, node.n))
+
+    def visit_List(self, node):
+        self.stack.append(create_object(self.scope, []))
+
+    def visit_Tuple(self, node):
+        self.stack.append(create_object(self.scope, ()))
+
+    def visit_Dict(self, node):
+        self.stack.append(create_object(self.scope, {}))
+
     def process(self, tree, scope):
         self.level = 0
         self.scope = scope

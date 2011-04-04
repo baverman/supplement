@@ -76,24 +76,31 @@ class NameExtractor(ast.NodeVisitor):
                 continue
             self.attrs[n.id] = 'assign', i, node.value, n
 
-    #def default(self, node):
-    #    print '  ' * self.level, type(node), vars(node)
-    #    self.level += 1
-    #    self.generic_visit(node)
-    #    self.level -= 1
-    #
-    #def __getattr__(self, name):
-    #    if name in ('_attrs'):
-    #        return object.__getattr__(self, name)
-    #
-    #    return self.default
-
     def process(self, node):
         if not node:
             return {}
 
-        #self.level = 0
         self.attrs = {}
         self.generic_visit(node)
         return self.attrs
 
+
+class TreeDumper(ast.NodeVisitor):
+    def default(self, node):
+        print '  ' * self.level, type(node), vars(node)
+        self.level += 1
+        self.generic_visit(node)
+        self.level -= 1
+
+    def __getattr__(self, name):
+        if name in ('_attrs'):
+            return object.__getattr__(self, name)
+
+        return self.default
+
+    def process(self, node):
+        self.level = 0
+        self.visit(node)
+
+def dump_tree(tree):
+    TreeDumper().process(tree)

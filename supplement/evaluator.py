@@ -55,23 +55,17 @@ class Evaluator(ast.NodeVisitor):
     def visit_Dict(self, node):
         self.stack.append(create_object(self.scope, {}))
 
+    def visit_Call(self, node):
+        self.visit(node.func)
+        func = self.stack.pop()
+        self.stack.append(func.call())
+
     def process(self, tree, scope):
-        self.level = 0
+        from .tree import dump_tree; dump_tree(tree)
+
         self.scope = scope
         self.ops = []
         self.stack = []
         self.generic_visit(tree)
 
         return self.stack[-1]
-
-    def default(self, node):
-        print '  ' * self.level, type(node), vars(node)
-        self.level += 1
-        self.generic_visit(node)
-        self.level -= 1
-
-    def __getattr__(self, name):
-        if name in ('_attrs'):
-            return object.__getattr__(self, name)
-
-        return self.default

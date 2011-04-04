@@ -78,6 +78,9 @@ class ClassObject(Object):
         self.collect_names(self.cls, self._names, set(), 0)
         return self._names
 
+    def call(self):
+        return FakeInstanceObject(self)
+
     def __contains__(self, name):
         return name in self.get_names()
 
@@ -94,6 +97,24 @@ class ClassObject(Object):
             return obj
         else:
             return self.project.get_module(cls.__module__)[cls.__name__][name]
+
+
+class FakeInstanceObject(Object):
+    def __init__(self, class_obj):
+        Object.__init__(self, ('undefined', None))
+        self._class = class_obj
+
+    def get_names(self):
+        return self._class.get_names()
+
+    def __contains__(self, name):
+        return name in self.get_names()
+
+    def __getitem__(self, name):
+        return self._class[name]
+
+    def get_location():
+        return None, None
 
 
 class InstanceObject(Object):

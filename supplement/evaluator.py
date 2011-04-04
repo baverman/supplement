@@ -17,34 +17,41 @@ def infer(string, scope):
     tree = ast.parse(string, '<string>', 'eval')
     return Evaluator().process(tree, scope)
 
+
 class Evaluator(ast.NodeVisitor):
+    def push(self, value):
+        self.stack.append(value)
+
+    def pop(self):
+        return self.stack.pop()
+
     def visit_Name(self, node):
-        self.stack.append(get_name(node.id, self.scope))
+        self.push(get_name(node.id, self.scope))
 
     def visit_Attribute(self, node):
         self.visit(node.value)
-        obj = self.stack.pop()
-        self.stack.append(obj[node.attr])
+        obj = self.pop()
+        self.push(obj[node.attr])
 
     def visit_Str(self, node):
-        self.stack.append(create_object(self.scope, node.s))
+        self.push(create_object(self.scope, node.s))
 
     def visit_Num(self, node):
-        self.stack.append(create_object(self.scope, node.n))
+        self.push(create_object(self.scope, node.n))
 
     def visit_List(self, node):
-        self.stack.append(create_object(self.scope, []))
+        self.push(create_object(self.scope, []))
 
     def visit_Tuple(self, node):
-        self.stack.append(create_object(self.scope, ()))
+        self.push(create_object(self.scope, ()))
 
     def visit_Dict(self, node):
-        self.stack.append(create_object(self.scope, {}))
+        self.push(create_object(self.scope, {}))
 
     def visit_Call(self, node):
         self.visit(node.func)
-        func = self.stack.pop()
-        self.stack.append(func.call())
+        func = self.pop()
+        self.push(func.call())
 
     def process(self, tree, scope):
         from .tree import dump_tree; dump_tree(tree)

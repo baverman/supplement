@@ -1,6 +1,7 @@
 import ast
 
-from .names import create_name, ModuleName, ImportedName
+from .names import create_name, ModuleName, ImportedName, AssignedName
+from .evaluator import Value
 
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
@@ -102,7 +103,7 @@ class Scope(object):
         except AttributeError:
             pass
 
-        self._names, starred_imports = NameExtractor().process(self.node)
+        self._names, starred_imports = NameExtractor().process(self.node, self)
         for m in starred_imports:
             for name in self.project.get_module(m, self.filename).get_names():
                 self._names[name] = ImportedName, m, name
@@ -184,33 +185,20 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_Assign(self, node):
         if isinstance(node.targets[0], ast.Tuple):
-            targets = node.targets[0].elts
+            targets = enumerate(node.targets[0].elts)
         else:
-            targets = node.targets
+            targets = ((None, r) for r in node.targets)
 
-        for i, n in enumerate(targets):
-            if isinstance(n,  UNSUPPORTED_ASSIGNMENTS):
-                continue
-            self.names[n.id] = 'AssignedName', i, n
+        for i, n in targets:
+            if isinstance(n,  ast.Name):
+                self.names[n.id] = AssignedName, i, Value(self.scope, node.value)
 
     def visit_arguments(self, node):
         for n in node.args:
             self.names[n.id] = 'ArgumentName', n
 
-    #def default(self, node):
-    #    print '  ' * self.level, type(node), vars(node)
-    #    self.level += 1
-    #    self.generic_visit(node)
-    #    self.level -= 1
-    #
-    #def __getattr__(self, name):
-    #    if name in ('_attrs'):
-    #        return object.__getattr__(self, name)
-    #
-    #    return self.default
-
-    def process(self, node):
-        #self.level = 0
+    def process(self, node, scope):
+        self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
         self.names = {}

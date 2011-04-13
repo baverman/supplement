@@ -18,6 +18,42 @@ def infer(string, scope):
     return Evaluator().process(tree, scope)
 
 
+class Value(object):
+    def __init__(self, scope, value):
+        self.scope = scope
+        self.value = value
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        value = ast.Expression()
+        value.body = self.value
+
+        self._object = Evaluator().process(value, self.scope)
+        return self._object
+
+
+class Indexable(object):
+    def __init__(self, scope, obj, nodes):
+        self.values = [Value(scope, r) for r in nodes]
+        self.object = obj
+
+    def op_getitem(self, idx):
+        return self.values[idx].get_object()
+
+    def get_names(self):
+        return self.object.get_names()
+
+    def __contains__(self, name):
+        return name in self.object
+
+    def __getitem__(self, name):
+        return self.object[name]
+
+
 class Evaluator(ast.NodeVisitor):
     def push(self, value):
         self.stack.append(value)
@@ -40,10 +76,10 @@ class Evaluator(ast.NodeVisitor):
         self.push(create_object(self.scope, node.n))
 
     def visit_List(self, node):
-        self.push(create_object(self.scope, []))
+        self.push(Indexable(self.scope, create_object(self.scope, []), node.elts))
 
     def visit_Tuple(self, node):
-        self.push(create_object(self.scope, ()))
+        self.push(Indexable(self.scope, create_object(self.scope, ()), node.elts))
 
     def visit_Dict(self, node):
         self.push(create_object(self.scope, {}))
@@ -61,4 +97,7 @@ class Evaluator(ast.NodeVisitor):
         self.stack = []
         self.generic_visit(tree)
 
-        return self.stack[-1]
+        if len(self.stack) != 1:
+            raise Exception('invalid eval stack:', repr(self.stack))
+
+        return self.stack[0]

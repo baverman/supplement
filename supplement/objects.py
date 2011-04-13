@@ -162,6 +162,9 @@ class InstanceObject(Object):
         else:
             return self.get_class()[name]
 
+    def op_getitem(self, idx):
+        return create_object(self, self.obj[idx])
+
 
 def create_object(owner, obj, node=None):
     node = node or ('undefined', None)

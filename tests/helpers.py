@@ -3,6 +3,14 @@ import types
 
 from supplement.module import Module
 from supplement.project import Project
+from supplement.fixer import fix
+from supplement.scope import Scope
+
+
+class TestModule(Module):
+    def get_source(self):
+        return self.source
+
 
 def create_module(project, name, source):
     source = cleantabs(source)
@@ -25,14 +33,17 @@ def create_module(project, name, source):
 
     return m
 
-class TestModule(Module):
-    def get_source(self):
-        return self.source
-
+def create_scope(project, code, filename=None):
+    ast, _ = fix(cleantabs(code))
+    scope = Scope(ast, '', None)
+    scope.project = project
+    scope.filename = filename
+    return scope
 
 def pytest_funcarg__project(request):
     p = Project('.')
     p.create_module = types.MethodType(create_module, p, Project)
+    p.create_scope = types.MethodType(create_scope, p, Project)
     return p
 
 def cleantabs(text):

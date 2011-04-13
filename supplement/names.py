@@ -60,6 +60,28 @@ class ImportedName(object):
         return name in self.get_object()
 
 
+class AssignedName(object):
+    def __init__(self, idx, value):
+        self.value = value
+        self.idx = idx
+
+    def get_object(self):
+        obj = self.value.get_object()
+        if self.idx is None:
+            return obj
+        else:
+            return obj.op_getitem(self.idx)
+
+    def get_names(self):
+        return self.get_object().get_names()
+
+    def __getitem__(self, name):
+        return self.get_object()[name]
+
+    def __contains__(self, name):
+        return name in self.get_object()
+
+
 def create_name(node, owner):
     obj = node[0](*node[1:])
     obj.project = owner.project

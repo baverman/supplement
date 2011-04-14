@@ -82,3 +82,28 @@ def test_eval_of_multi_assigned_name_from_imported_seq(project):
     obj = infer('l', scope)
     assert 'append' in obj
 
+def test_eval_of_seq_item_get(project):
+    scope = project.create_scope('''
+        seq_value = [{}, []]
+        d = seq_value[0]
+        l = seq_value[1]
+    ''')
+
+    obj = infer('d', scope)
+    assert 'iterkeys' in obj
+
+    obj = infer('l', scope)
+    assert 'append' in obj
+
+def test_eval_of_dict_item_get(project):
+    scope = project.create_scope('''
+        dict_value = {'aaa':{}, 2:[]}
+        d = dict_value['aaa']
+        l = dict_value[2]
+    ''')
+
+    obj = infer('d', scope)
+    assert 'iterkeys' in obj
+
+    obj = infer('l', scope)
+    assert 'append' in obj

@@ -165,6 +165,9 @@ class InstanceObject(Object):
     def op_getitem(self, idx):
         return create_object(self, self.obj[idx])
 
+    def get_value(self):
+        return self.obj
+
 
 def create_object(owner, obj, node=None):
     node = node or ('undefined', None)

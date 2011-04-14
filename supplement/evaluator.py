@@ -54,6 +54,33 @@ class Indexable(object):
         return self.object[name]
 
 
+class Dict(object):
+    def __init__(self, scope, node):
+        self.scope = scope
+        self.node = node
+        self.object = create_object(scope, {})
+
+    def op_getitem(self, idx):
+        try:
+            data = self.data
+        except AttributeError:
+            data = self.data = {}
+            scope = self.scope
+            for k, v in zip(self.node.keys, self.node.values):
+                data[Value(scope, k).get_object().get_value()] = Value(scope, v).get_object()
+
+        return self.data[idx]
+
+    def get_names(self):
+        return self.object.get_names()
+
+    def __contains__(self, name):
+        return name in self.object
+
+    def __getitem__(self, name):
+        return self.object[name]
+
+
 class Evaluator(ast.NodeVisitor):
     def push(self, value):
         self.stack.append(value)
@@ -82,12 +109,21 @@ class Evaluator(ast.NodeVisitor):
         self.push(Indexable(self.scope, create_object(self.scope, ()), node.elts))
 
     def visit_Dict(self, node):
-        self.push(create_object(self.scope, {}))
+        self.push(Dict(self.scope, node))
 
     def visit_Call(self, node):
         self.visit(node.func)
         func = self.pop()
         self.push(func.call())
+
+    def visit_Subscript(self, node):
+        self.visit(node.slice)
+        idx = self.pop()
+
+        self.visit(node.value)
+        obj = self.pop()
+
+        self.push(obj.op_getitem(idx.get_value()))
 
     def process(self, tree, scope):
         from .tree import dump_tree; dump_tree(tree)

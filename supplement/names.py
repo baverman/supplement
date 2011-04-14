@@ -81,6 +81,9 @@ class AssignedName(object):
     def __contains__(self, name):
         return name in self.get_object()
 
+    def op_getitem(self, idx):
+        return self.get_object().op_getitem(idx)
+
 
 def create_name(node, owner):
     obj = node[0](*node[1:])

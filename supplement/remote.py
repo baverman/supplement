@@ -4,8 +4,9 @@ import time
 
 class Environment(object):
 
-    def __init__(self, executable=None):
+    def __init__(self, executable=None, env=None):
         self.executable = executable or sys.executable
+        self.env = env
 
     def run(self):
         from subprocess import Popen
@@ -16,7 +17,12 @@ class Environment(object):
 
         args = [self.executable, filename, addr]
 
-        self.proc = Popen(args)
+        env = None
+        if self.env:
+            env = os.environ.copy()
+            env.update(self.env)
+
+        self.proc = Popen(args, env=env)
         start = time.time()
         while not os.path.exists(addr):
             if time.time() - start > 5:

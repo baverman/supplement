@@ -168,7 +168,13 @@ def test_assist_for_module_attributes(project):
         import toimport
         toimport.''')
 
-    assert result == ['__builtins__', '__doc__', '__file__', '__name__', 'test']
+    assert result == ['test']
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.__''')
+
+    assert result == ['__builtins__', '__doc__', '__file__', '__name__']
 
 def test_assist_for_dotted_module_attributes(project):
     project.create_module('package.toimport', '''
@@ -179,14 +185,14 @@ def test_assist_for_dotted_module_attributes(project):
         import package.toimport
         package.''')
 
-    assert result == ['__doc__', '__name__', 'toimport']
+    assert result == ['toimport']
 
 
     result = do_assist(project, '''
         import package.toimport
         package.toimport.''')
 
-    assert result == ['__builtins__', '__doc__', '__file__', '__name__', 'test']
+    assert result == ['test']
 
 def test_assist_for_imported_names_attributes(project):
     project.create_module('toimport', '''

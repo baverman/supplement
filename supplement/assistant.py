@@ -20,7 +20,8 @@ def collect_names(match, names):
         names_to_add = []
         for r in name_list:
             if r in existing: continue
-            if not match or ( r.startswith(match) and match != r ):
+            if not match and r.startswith('__'): continue
+            if not match or (r.startswith(match) and match != r):
                 names_to_add.append(r)
                 existing.add(r)
 

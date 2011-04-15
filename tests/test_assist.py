@@ -199,3 +199,23 @@ def test_assist_for_imported_names_attributes(project):
 
     assert 'lower' in result
     assert 'isdigit' in result
+
+def test_assist_after_curve_brackets(project):
+    result = do_assist(project, '''{1:()}.''')
+    assert 'iterkeys' in result
+
+def test_assist_after_square_brackets(project):
+    result = do_assist(project, '''[1].''')
+    assert 'append' in result
+
+def test_assist_for_list_item(project):
+    result = do_assist(project, '''["string"][0].''')
+    assert 'lower' in result
+
+def test_assist_for_dict_item(project):
+    result = do_assist(project, '''{"key":[]}["key"].''')
+    assert 'append' in result
+
+def test_assist_for_call(project):
+    result = do_assist(project, '''dict().''')
+    assert 'iterkeys' in result

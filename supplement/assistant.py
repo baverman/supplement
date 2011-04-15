@@ -31,18 +31,58 @@ def collect_names(match, names):
 def char_is_id(c):
     return c == '_' or c.isalnum()
 
-def find_id(collected, source, position):
-    i = position
-    while i > 0:
-        i -= 1
-        if not char_is_id(source[i]):
+def find_bracket(br):
+    brks = {')':'(', ']':'[', '}':'{'}
+    def inner(result, source, pos):
+        level = 0
+        consumed = []
+        while pos >= 0:
+            c = source[pos]
+            consumed.append(c)
+            if c == br:
+                level += 1
+            if c == brks[br]:
+                level -= 1
+
+            pos -= 1
+
+            if level == 0:
+                break
+        else:
+            return None, pos
+
+        [result.insert(0, r) for r in consumed]
+        return find_start, pos
+
+    return inner
+
+def find_id(result, source, pos):
+    while pos >= 0:
+        c = source[pos]
+        if not char_is_id(c):
             break
 
-    collected.insert(0, source[i+1:position])
-    if source[i] == '.' and i > 1:
-        return find_id, i
+        result.insert(0, c)
+        pos -= 1
+    else:
+        return None, pos
 
-    return None, i
+    return find_start, pos
+
+def find_start(result, source, pos):
+    if pos < 0:
+        return None, pos
+
+    c = source[pos]
+    if c == '.':
+        result.insert(0, c)
+        return find_start, pos - 1
+    if c in (')', '}', ']'):
+        return find_bracket(c), pos
+    if char_is_id(c):
+        return find_id, pos
+
+    return None, pos
 
 def get_line(source, lineno):
     lines = source.splitlines(True)
@@ -57,15 +97,26 @@ package_in_from_import_matcher = re.compile('from\s+(.+?)\s+import')
 def get_context(source, position):
     lineno = source.count('\n', 0, position) + 1
 
-    func = find_id
     collected = []
+    position -= 1
+    func, position = find_start(collected, source, position)
+
+    match = ''
+    if func == find_id:
+        func, position = func(collected, source, position)
+        match = ''.join(collected)
+        collected = []
+
     while func:
         func, position = func(collected, source, position)
 
+    ctx = ''.join(collected)
+    stripped_context = ctx.rstrip('.')
+    if stripped_context:
+        ctx = stripped_context
+
     line, line_pos = get_line(source, lineno)
     stripped_line = line.lstrip()
-
-    ctx, match = '.'.join(collected[:-1]), collected[-1]
 
     ctx_type = 'none'
     if stripped_line.startswith('import'):
@@ -79,16 +130,15 @@ def get_context(source, position):
                 ctx = m.group(1)
         else:
             ctx_type = 'from'
-            ctx = '.'.join('.' if r == '' else r for r in collected[:-1])
     else:
-        ctx_type = 'name'
+        ctx_type = 'eval'
 
     return ctx_type, lineno, ctx, match
 
 def assist(project, source, position, filename):
     ctx_type, lineno, ctx, match = get_context(source, position)
 
-    if ctx_type == 'name':
+    if ctx_type == 'eval':
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
 

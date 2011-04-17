@@ -1,6 +1,9 @@
+import pytest
+
 from supplement import watcher
 import time
 
+@pytest.mark.slow
 def test_watcher_must_call_handler_on_file_change(tmpdir):
     f =  tmpdir.join('test.py')
     f.write('content')

@@ -23,28 +23,22 @@ class ImportedObject(object):
     def __init__(self, node):
         self.node = node
 
-    def get_real_object(self):
-        try:
-            return self._real_object
-        except AttributeError:
-            pass
-
+    def get_object(self):
         name, inode = self.node[1], self.node[2]
         module = self.project.get_module(inode.module, self.filename)
-        obj = self._real_object = module[name]
-        return obj
+        return module[name]
 
     def get_location(self):
-        return self.get_real_object().get_location()
+        return self.get_object().get_location()
 
     def get_names(self):
-        return self.get_real_object().get_names()
+        return self.get_object().get_names()
 
     def __contains__(self, name):
-        return name in self.get_real_object()
+        return name in self.get_object()
 
     def __getitem__(self, name):
-        return self.get_real_object()[name]
+        return self.get_object()[name]
 
 
 class FunctionObject(Object):

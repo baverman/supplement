@@ -1,7 +1,10 @@
+import pytest
+
 from supplement.remote import Environment
 
 from .helpers import cleantabs
 
+@pytest.mark.slow
 def test_project_token():
     env = Environment()
     env.run()
@@ -11,6 +14,7 @@ def test_project_token():
 
     assert p1 != p2
 
+@pytest.mark.slow
 def test_simple_assist():
     env = Environment()
     env.run()

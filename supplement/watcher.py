@@ -5,18 +5,16 @@ import threading
 
 monitors = {}
 handlers = {}
-loop_thread = []
+loop_thread = None
 
 def file_changed(monitor, file1, file2, evt_type):
     if evt_type == gio.FILE_MONITOR_EVENT_CHANGES_DONE_HINT:
         fname = file1.get_path()
-        for h, args in handlers[fname]:
-            h(fname, *args)
+        for v in handlers[fname]:
+            v[0](fname, *v[1:])
 
 def monitor(filename, handler, *args):
-    try:
-        loop_thread[0]
-    except IndexError:
+    if not loop_thread:
         run_loop()
 
     if filename not in monitors:
@@ -25,7 +23,7 @@ def monitor(filename, handler, *args):
         monitor.connect('changed', file_changed)
         monitors[filename] = monitor
 
-    handlers.setdefault(filename, []).append((handler, args))
+    handlers.setdefault(filename, set()).add((handler,) + args)
 
 def process_events():
     ctx = glib.main_context_default()
@@ -36,8 +34,7 @@ def process_events():
         time.sleep(0.3)
 
 def run_loop():
-    t = threading.Thread(target=process_events)
-    t.daemon = True
-    t.start()
-
-    loop_thread.append(t)
+    global loop_thread
+    loop_thread = threading.Thread(target=process_events)
+    loop_thread.daemon = True
+    loop_thread.start()

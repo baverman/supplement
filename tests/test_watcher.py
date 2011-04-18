@@ -4,17 +4,26 @@ from supplement import watcher
 import time
 
 @pytest.mark.slow
-def test_watcher_must_call_handler_on_file_change(tmpdir):
-    f =  tmpdir.join('test.py')
+def test_watcher_must_call_uniq_handlers_on_file_change(tmpdir):
+    f = tmpdir.join('test.py')
     f.write('content')
 
-    changed = []
-    def on_change(fname):
-        changed.append(fname)
+    class Holder(object):
+        def __init__(self):
+            self.data = []
 
-    watcher.monitor(str(f), on_change)
+    def on_change(fname, l):
+        l.data.append(fname)
+
+    changed1 = Holder()
+    changed2 = Holder()
+
+    watcher.monitor(str(f), on_change, changed1)
+    watcher.monitor(str(f), on_change, changed1)
+    watcher.monitor(str(f), on_change, changed2)
 
     f.write('ddddddd')
 
     time.sleep(2)
-    assert changed == [str(f)]
+    assert changed1.data== [str(f)]
+    assert changed2.data == [str(f)]

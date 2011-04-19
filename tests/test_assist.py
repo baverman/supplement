@@ -229,6 +229,17 @@ def test_assist_for_call(project):
     result = do_assist(project, '''dict().''')
     assert 'iterkeys' in result
 
+def test_assist_for_module_imported_from_package(project):
+    project.create_module('package.toimport', '''
+        test = 1
+    ''')
+
+    result = do_assist(project, '''
+        from package import toimport
+        toimport.''')
+
+    assert result == ['test']
+
 @pytest.mark.slow
 def test_assist_for_names_in_changed_module(project, tmpdir):
     project.set_root(str(tmpdir))
@@ -236,10 +247,9 @@ def test_assist_for_names_in_changed_module(project, tmpdir):
     m = tmpdir.join('toimport.py')
     m.write('name1 = 1')
 
-    def get_result():
-        return do_assist(project, '''
-            import toimport
-            toimport.''')
+    def get_result(): return do_assist(project, '''
+        import toimport
+        toimport.''')
 
     result = get_result()
     assert result == ['name1']

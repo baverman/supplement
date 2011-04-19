@@ -16,9 +16,11 @@ class ModuleProvider(object):
             pass
 
         try:
-            del self.cache[module_name]
+            m = self.cache[module_name]
         except KeyError:
             pass
+
+        m.invalidate()
 
     def get(self, project, name):
         try:
@@ -26,20 +28,7 @@ class ModuleProvider(object):
         except KeyError:
             pass
 
-        try:
-            module = sys.modules[name]
-        except KeyError:
-            oldpath = sys.path
-            sys.path = project.paths
-
-            try:
-                __import__(name)
-            finally:
-                sys.path = oldpath
-
-            module = sys.modules[name]
-
-        m = self.cache[name] = Module(project, module)
+        m = self.cache[name] = Module(project, name)
 
         filename = m.filename
         if filename:
@@ -85,16 +74,50 @@ class ModuleNodeProvider(NodeProvider):
 
 
 class Module(object):
-    def __init__(self, project, module):
-        self.module = module
-        self.name = module.__name__
+    def __init__(self, project, name):
         self.project = project
+        self.name = name
         self._attrs = {}
         self.node_provider = ModuleNodeProvider(self)
 
     def get_source(self):
         filename = self.filename
         return filename and open(filename).read()
+
+    @property
+    def module(self):
+        try:
+            return self._module
+        except AttributeError:
+            pass
+
+        try:
+            self._module = sys.modules[self.name]
+        except KeyError:
+            oldpath = sys.path
+            sys.path = self.project.paths
+
+            try:
+                __import__(self.name)
+            finally:
+                sys.path = oldpath
+
+            self._module = sys.modules[self.name]
+
+        return self._module
+
+    def invalidate(self):
+        try:
+            del self._module
+        except AttributeError:
+            pass
+
+        try:
+            del self._names
+        except AttributeError:
+            pass
+
+        self.attrs.clear()
 
     @property
     def filename(self):

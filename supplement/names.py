@@ -48,7 +48,13 @@ class ImportedName(object):
         self.name = name
 
     def get_object(self):
-        return self.project.get_module(self.module_name, self.filename)[self.name]
+        module = self.project.get_module(self.module_name, self.filename)
+        try:
+            return module[self.name]
+        except KeyError:
+            pass
+
+        return self.project.get_module(self.module_name + '.' + self.name, self.filename)
 
     def get_names(self):
         return self.get_object().get_names()

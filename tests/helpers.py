@@ -20,7 +20,7 @@ def create_module(project, name, source):
 
     exec code in module.__dict__
 
-    m = TestModule(project, module)
+    m = TestModule(project, name)
     m.source = source
     module.__file__ = name + '.py'
 
@@ -30,6 +30,7 @@ def create_module(project, name, source):
     if package_name:
         project.package_resolver.cache[os.path.abspath(package_name)] = package_name
         sys.modules[package_name] = types.ModuleType(package_name)
+        setattr(sys.modules[package_name], module_name, module)
 
     return m
 

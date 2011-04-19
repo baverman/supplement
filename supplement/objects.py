@@ -1,4 +1,4 @@
-from types import FunctionType, ClassType, TypeType
+from types import FunctionType, ClassType, TypeType, ModuleType
 
 from .tree import CtxNodeProvider
 
@@ -164,6 +164,8 @@ class InstanceObject(Object):
 
 
 def create_object(owner, obj, node=None):
+    from .module import Module
+
     node = node or ('undefined', None)
 
     if node[0] == 'imported':
@@ -174,6 +176,9 @@ def create_object(owner, obj, node=None):
 
     elif type(obj) in (ClassType, TypeType):
         newobj = ClassObject(node, obj)
+
+    elif type(obj) == ModuleType:
+        return Module(owner.project, obj.__name__)
 
     else:
         newobj = InstanceObject(node, obj)

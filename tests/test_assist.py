@@ -1,3 +1,6 @@
+import time
+import pytest
+
 from supplement.assistant import assist
 
 from .helpers import pytest_funcarg__project, cleantabs
@@ -225,3 +228,25 @@ def test_assist_for_dict_item(project):
 def test_assist_for_call(project):
     result = do_assist(project, '''dict().''')
     assert 'iterkeys' in result
+
+@pytest.mark.slow
+def test_assist_for_names_in_changed_module(project, tmpdir):
+    project.set_root(str(tmpdir))
+
+    m = tmpdir.join('toimport.py')
+    m.write('name1 = 1')
+
+    def get_result():
+        return do_assist(project, '''
+            import toimport
+            toimport.''')
+
+    result = get_result()
+    assert result == ['name1']
+
+    time.sleep(1)
+    m.write('name1 = 1\nname2 = 2')
+    time.sleep(2)
+
+    result = get_result()
+    assert result == ['name1', 'name2']

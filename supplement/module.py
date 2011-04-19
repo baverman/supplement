@@ -3,11 +3,22 @@ from os.path import dirname, basename, exists, join
 
 from .objects import create_object
 from .tree import NodeProvider
-
+from watcher import monitor
 
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
+
+    def on_file_change(self, filename, module_name):
+        try:
+            del sys.modules[module_name]
+        except KeyError:
+            pass
+
+        try:
+            del self.cache[module_name]
+        except KeyError:
+            pass
 
     def get(self, project, name):
         try:
@@ -20,15 +31,20 @@ class ModuleProvider(object):
         except KeyError:
             oldpath = sys.path
             sys.path = project.paths
+
             try:
                 __import__(name)
-            except:
+            finally:
                 sys.path = oldpath
-                raise
 
             module = sys.modules[name]
 
         m = self.cache[name] = Module(project, module)
+
+        filename = m.filename
+        if filename:
+            monitor(filename, self.on_file_change, name)
+
         return m
 
 

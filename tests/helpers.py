@@ -40,10 +40,19 @@ def create_scope(project, code, filename=None):
     scope.filename = filename
     return scope
 
+def set_project_root(project, root):
+    project.root = root
+    project.paths = [os.path.abspath(root)] + sys.path
+
 def pytest_funcarg__project(request):
+    for crap_module in ('toimport',):
+        if crap_module in sys.modules:
+            del sys.modules[crap_module]
+
     p = Project('.')
-    p.create_module = types.MethodType(create_module, p, Project)
-    p.create_scope = types.MethodType(create_scope, p, Project)
+    p.create_module = create_module.__get__(p, Project)
+    p.create_scope = create_scope.__get__(p, Project)
+    p.set_root = set_project_root.__get__(p, Project)
     return p
 
 def cleantabs(text):

@@ -93,14 +93,38 @@ class AssignedName(object):
         return self.get_object().op_getitem(idx)
 
 
+class RecursiveCallException(Exception):
+    def __init__(self, obj):
+        self.object = obj
+
+    def is_called_by(self, obj):
+        return obj is self.object
+
+
 class FunctionName(object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node
+        self._calling = False
 
     def op_call(self, args=[]):
-        return_list = ReturnExtractor().process(self.node)
-        return self.scope.get_call_scope(args).eval(return_list[0], False)
+
+        if self._calling:
+            raise RecursiveCallException(self)
+
+        self._calling = True
+        try:
+            for rvalue in ReturnExtractor().process(self.node):
+                try:
+                    return self.scope.get_call_scope(args).eval(rvalue, False)
+                except RecursiveCallException, e:
+                    if not e.is_called_by(self):
+                        raise
+        finally:
+            self._calling = False
+
+        from .objects import Object
+        return Object(None)
 
 
 class ArgumentName(object):

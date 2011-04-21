@@ -125,3 +125,18 @@ def test_eval_of_function_call_with_arguments(project):
 
     obj = infer('func([])', scope)
     assert 'append' in obj
+
+def test_eval_of_recursive_function_call(project):
+    scope = project.create_scope('''
+        def func(arg):
+            if arg:
+                return func()
+
+            return arg
+    ''')
+
+    obj = infer('func([])', scope)
+    assert 'append' in obj
+
+    obj = infer('func({})', scope)
+    assert 'iterkeys' in obj

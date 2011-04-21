@@ -148,3 +148,12 @@ def test_eval_of_ping_pong_call(project):
 
     obj = infer('ping()', scope)
     assert 'append' in obj
+
+def test_fallback_to_safe_result_on_rec_func_eval(project):
+    scope = project.create_scope('''
+        def func():
+            return func()
+    ''')
+
+    obj = infer('func()', scope)
+    assert obj.get_names() == []

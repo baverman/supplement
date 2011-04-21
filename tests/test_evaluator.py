@@ -128,15 +128,23 @@ def test_eval_of_function_call_with_arguments(project):
 
 def test_eval_of_recursive_function_call(project):
     scope = project.create_scope('''
-        def func(arg):
-            if arg:
-                return func()
-
-            return arg
+        def func():
+            return func()
+            return []
     ''')
 
-    obj = infer('func([])', scope)
+    obj = infer('func()', scope)
     assert 'append' in obj
 
-    obj = infer('func({})', scope)
-    assert 'iterkeys' in obj
+def test_eval_of_ping_pong_call(project):
+    scope = project.create_scope('''
+        def ping():
+            return pong()
+            return []
+
+        def pong():
+            return ping()
+    ''')
+
+    obj = infer('ping()', scope)
+    assert 'append' in obj

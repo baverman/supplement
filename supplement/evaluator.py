@@ -29,10 +29,7 @@ class Value(object):
         except AttributeError:
             pass
 
-        value = ast.Expression()
-        value.body = self.value
-
-        self._object = Evaluator().process(value, self.scope)
+        self._object = Evaluator().process(self.value, self.scope, False)
         return self._object
 
 
@@ -114,7 +111,13 @@ class Evaluator(ast.NodeVisitor):
     def visit_Call(self, node):
         self.visit(node.func)
         func = self.pop()
-        self.push(func.call())
+
+        args = []
+        for arg in node.args:
+            self.visit(arg)
+            args.append(self.pop())
+
+        self.push(func.op_call(args))
 
     def visit_Subscript(self, node):
         self.visit(node.slice)
@@ -125,13 +128,17 @@ class Evaluator(ast.NodeVisitor):
 
         self.push(obj.op_getitem(idx.get_value()))
 
-    def process(self, tree, scope):
+    def process(self, tree, scope, skip_toplevel=True):
         from .tree import dump_tree; dump_tree(tree)
 
         self.scope = scope
         self.ops = []
         self.stack = []
-        self.generic_visit(tree)
+
+        if skip_toplevel:
+            self.generic_visit(tree)
+        else:
+            self.visit(tree)
 
         if len(self.stack) != 1:
             raise Exception('invalid eval stack:', repr(self.stack))

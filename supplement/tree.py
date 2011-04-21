@@ -85,6 +85,18 @@ class NameExtractor(ast.NodeVisitor):
         return self.attrs
 
 
+class ReturnExtractor(ast.NodeVisitor):
+    def process(self, node):
+        dump_tree(node)
+        self.result = []
+        self.generic_visit(node)
+
+        return self.result
+
+    def visit_Return(self, node):
+        self.result.append(node)
+
+
 class TreeDumper(ast.NodeVisitor):
     def default(self, node):
         print '  ' * self.level, type(node), vars(node)

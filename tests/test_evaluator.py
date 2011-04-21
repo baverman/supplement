@@ -107,3 +107,21 @@ def test_eval_of_dict_item_get(project):
 
     obj = infer('l', scope)
     assert 'append' in obj
+
+def test_eval_of_function_call_without_arguments(project):
+    scope = project.create_scope('''
+        def func():
+            return []
+    ''')
+
+    obj = infer('func()', scope)
+    assert 'append' in obj
+
+def test_eval_of_function_call_with_arguments(project):
+    scope = project.create_scope('''
+        def func(arg):
+            return arg
+    ''')
+
+    obj = infer('func([])', scope)
+    assert 'append' in obj

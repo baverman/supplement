@@ -10,6 +10,7 @@ class ModuleProvider(object):
         self.cache = {}
 
     def on_file_change(self, filename, module_name):
+        print 'file changed [', filename, module_name, ']'
         try:
             del sys.modules[module_name]
         except KeyError:
@@ -126,10 +127,10 @@ class Module(object):
         except AttributeError:
             return None
 
-        if not any(map(filename.endswith, ('.py', '.pyc'))):
+        if not any(map(filename.endswith, ('.py', '.pyc', '.pyo'))):
             return None
 
-        return filename.replace('.pyc', '.py')
+        return filename.replace('.pyc', '.py').replace('.pyo', '.py')
 
     def get_names(self):
         try:

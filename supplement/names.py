@@ -1,3 +1,5 @@
+from .tree import ReturnExtractor
+
 class ModuleName(object):
     def __init__(self, name, additional=None):
         self.name = name
@@ -90,6 +92,22 @@ class AssignedName(object):
     def op_getitem(self, idx):
         return self.get_object().op_getitem(idx)
 
+
+class FunctionName(object):
+    def __init__(self, scope, node):
+        self.scope = scope
+        self.node = node
+
+    def op_call(self, args=[]):
+        return_list = ReturnExtractor().process(self.node)
+        return self.scope.get_call_scope(args).eval(return_list[0], False)
+
+
+class ArgumentName(object):
+    def __init__(self, scope, index, name):
+        self.scope = scope
+        self.index = index
+        self.name = name
 
 def create_name(node, owner):
     obj = node[0](*node[1:])

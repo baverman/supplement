@@ -36,7 +36,7 @@ def create_module(project, name, source):
 
 def create_scope(project, code, filename=None):
     ast, _ = fix(cleantabs(code))
-    scope = Scope(ast, '', None)
+    scope = Scope(ast, '', None, 'module')
     scope.project = project
     scope.filename = filename
     return scope

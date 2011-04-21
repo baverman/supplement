@@ -72,7 +72,7 @@ class ClassObject(Object):
         self.collect_names(self.cls, self._names, set(), 0)
         return self._names
 
-    def call(self):
+    def op_call(self, args):
         return FakeInstanceObject(self)
 
     def __contains__(self, name):

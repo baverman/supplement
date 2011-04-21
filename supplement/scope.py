@@ -1,7 +1,7 @@
 import ast
 
-from .names import create_name, ModuleName, ImportedName, AssignedName
-from .evaluator import Value
+from .names import create_name, ModuleName, ImportedName, AssignedName, FunctionName, ArgumentName
+from .evaluator import Value, Evaluator
 
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
 
@@ -40,7 +40,7 @@ def get_block_end(table, lines):
 
 def get_scope_at(project, source, lineno, filename=None, ast_node=None):
     ast_node = ast_node or ast.parse(source)
-    scope = Scope(ast_node, '', None)
+    scope = Scope(ast_node, '', None, 'module')
     scope.project = project
     scope.filename = filename
 
@@ -67,11 +67,12 @@ def get_scope_at(project, source, lineno, filename=None, ast_node=None):
 
 
 class Scope(object):
-    def __init__(self, node, name, parent):
+    def __init__(self, node, name, parent, scope_type):
         self.node = node
         self.name = name
         self.parent = parent
         self._attrs = {}
+        self.type = type
 
         if parent:
             self.project = parent.project
@@ -96,6 +97,13 @@ class Scope(object):
 
         self.children = ScopeExtractor().process(self)
         return self.children
+
+    def get_child_by_name(self, name):
+        for c in self.get_children():
+            if c.name == name:
+                return c
+
+        raise KeyError(name)
 
     def get_names(self):
         try:
@@ -123,6 +131,48 @@ class Scope(object):
         obj = self._attrs[name] = create_name(node, self)
         return obj
 
+    def eval(self, node, skip_toplevel=True):
+        return Evaluator().process(node, self, skip_toplevel)
+
+    def get_call_scope(self, args):
+        return CallScope(self, args)
+
+
+class CallScope(object):
+    def __init__(self, parent, args):
+        self.name = ''
+        self.type = 'func'
+        self.fullname = parent.fullname
+        self.parent = parent
+        self.args = args
+        self.project = parent.project
+        self.filename = parent.filename
+
+    def get_names(self):
+        return self.parent.get_names()
+
+    def __contains__(self, name):
+        return name in self.get_names()
+
+    def __getitem__(self, name):
+        obj = self.parent[name]
+        if isinstance(obj, ArgumentName):
+            return self.args[obj.index]
+
+        return obj
+
+    def get_lineno(self):
+        return self.parent.get_lineno()
+
+    def get_children(self):
+        return self.parent.get_children()
+
+    def get_child_by_name(self, name):
+        return self.parent.get_child_by_name()
+
+    def eval(self, node, skip_toplevel=True):
+        return Evaluator().process(node, self, skip_toplevel)
+
 
 class StaticScope(object):
     def __init__(self, fullname, project, filename=None):
@@ -144,10 +194,12 @@ class StaticScope(object):
 
 class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
-        self.children.append(Scope(node, node.name, self.scope))
+        scope = Scope(node, node.name, self.scope, 'func')
+        scope.args = {}
+        self.children.append(scope)
 
     def visit_ClassDef(self, node):
-        self.children.append(Scope(node, node.name, self.scope))
+        self.children.append(Scope(node, node.name, self.scope, 'class'))
 
     def process(self, scope):
         self.children = []
@@ -159,7 +211,7 @@ class ScopeExtractor(ast.NodeVisitor):
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
-        self.names[node.name] = 'FunctionName', node
+        self.names[node.name] = FunctionName, self.scope.get_child_by_name(node.name), node
 
     def visit_ImportFrom(self, node):
         for n in node.names:
@@ -194,8 +246,9 @@ class NameExtractor(ast.NodeVisitor):
                 self.names[n.id] = AssignedName, i, Value(self.scope, node.value)
 
     def visit_arguments(self, node):
-        for n in node.args:
-            self.names[n.id] = 'ArgumentName', n
+        for i, n in enumerate(node.args):
+            self.names[n.id] = ArgumentName, self.scope, i, n.id
+            self.scope.args[i] = n.id
 
     def process(self, node, scope):
         self.scope = scope

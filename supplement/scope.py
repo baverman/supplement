@@ -15,7 +15,8 @@ def get_block_end(table, lines):
     start = table.get_lineno() - 1
     start_line = lines[start]
 
-    while not any(map(start_line.lstrip().startswith, ('def ', 'class '))):
+    stripped_start_line = start_line.lstrip()
+    while not any(map(stripped_start_line.startswith, ('def ', 'class '))):
         start += 1
         try:
             start_line = lines[start]
@@ -63,6 +64,7 @@ def get_scope_at(project, source, lineno, filename=None, ast_node=None):
 
         node = node.parent
 
+    node.current_line = lineno
     return node
 
 
@@ -73,6 +75,7 @@ class Scope(object):
         self.parent = parent
         self._attrs = {}
         self.type = type
+        self.current_line = None
 
         if parent:
             self.project = parent.project
@@ -111,8 +114,8 @@ class Scope(object):
         except AttributeError:
             pass
 
-        self._names, starred_imports = NameExtractor().process(self.node, self)
-        for m in starred_imports:
+        self._names, starred_imports = NameExtractor().process(self.node, self, self.current_line)
+        for m, lineno in starred_imports:
             for name in self.project.get_module(m, self.filename).get_names():
                 self._names[name] = ImportedName, m, name
 
@@ -136,6 +139,16 @@ class Scope(object):
 
     def get_call_scope(self, args):
         return CallScope(self, args)
+
+    def find_name(self, name):
+        scope = self
+        while scope:
+            try:
+                return scope[name]
+            except KeyError:
+                scope = scope.parent
+
+        return self.project.get_module('__builtin__')[name]
 
 
 class CallScope(object):
@@ -211,18 +224,21 @@ class ScopeExtractor(ast.NodeVisitor):
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
+        if self.below_current_line(node): return
         self.names[node.name] = FunctionName, self.scope.get_child_by_name(node.name), node
 
     def visit_ImportFrom(self, node):
+        if self.below_current_line(node): return
         for n in node.names:
             module_name = '.' * node.level + node.module
             if n.name == '*':
-                self.starred_imports.append(module_name)
+                self.starred_imports.append((module_name, node.lineno))
             else:
                 name = n.asname if n.asname else n.name
                 self.names[name] = ImportedName, module_name, name
 
     def visit_Import(self, node):
+        if self.below_current_line(node): return
         for n in node.names:
             if n.asname:
                 self.names[n.asname] = ModuleName, n.name
@@ -233,9 +249,11 @@ class NameExtractor(ast.NodeVisitor):
                     self.additional_imports.setdefault(name, []).append(tail)
 
     def visit_ClassDef(self, node):
+        if self.below_current_line(node): return
         self.names[node.name] = 'ClassName', node
 
     def visit_Assign(self, node):
+        if self.below_current_line(node): return
         if isinstance(node.targets[0], ast.Tuple):
             targets = enumerate(node.targets[0].elts)
         else:
@@ -250,11 +268,16 @@ class NameExtractor(ast.NodeVisitor):
             self.names[n.id] = ArgumentName, self.scope, i, n.id
             self.scope.args[i] = n.id
 
-    def process(self, node, scope):
+    def below_current_line(self, node):
+        return self.current_line is not None and node.lineno > self.current_line
+
+    def process(self, node, scope, current_line):
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
         self.names = {}
+        self.current_line = current_line
+
         self.generic_visit(node)
 
         for k, v in self.additional_imports.iteritems():

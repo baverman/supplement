@@ -88,6 +88,9 @@ class Evaluator(ast.NodeVisitor):
     def visit_Name(self, node):
         self.push(get_name(node.id, self.scope))
 
+    def visit_IfExp(self, node):
+        self.visit(node.body)
+
     def visit_Attribute(self, node):
         self.visit(node.value)
         obj = self.pop()
@@ -129,7 +132,9 @@ class Evaluator(ast.NodeVisitor):
         self.push(obj.op_getitem(idx.get_value()))
 
     def process(self, tree, scope, skip_toplevel=True):
-        from .tree import dump_tree; dump_tree(tree)
+        from .tree import dump_tree;
+        dump_tree(tree)
+        print
 
         self.scope = scope
         self.ops = []

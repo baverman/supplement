@@ -15,3 +15,10 @@ def test_assist_for_watcher_raises_KeyError(project):
 
     assert 'run_loop' in result
     assert 'monitor' in result
+
+def test_eval_of_os_path_absname(project):
+    result = do_assist(project, '''
+        from os.path import abspath
+        abspath('').''')
+
+    assert 'lower' in result

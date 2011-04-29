@@ -57,6 +57,7 @@ class FunctionObject(Object):
         else:
             return Object(None)
 
+
 class ClassObject(Object):
     def __init__(self, node, cls):
         Object.__init__(self, node)

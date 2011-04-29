@@ -44,7 +44,24 @@ class ModuleName(object):
         return self.project.get_module(self.name, self.filename)[name]
 
 
-class ImportedName(object):
+class GetObjectDelegate(object):
+    def get_names(self):
+        return self.get_object().get_names()
+
+    def __getitem__(self, name):
+        return self.get_object()[name]
+
+    def __contains__(self, name):
+        return name in self.get_object()
+
+    def op_call(self, args):
+        return self.get_object().op_call(args)
+
+    def op_getitem(self, idx):
+        return self.get_object().op_getitem(idx)
+
+
+class ImportedName(GetObjectDelegate):
     def __init__(self, module_name, name):
         self.module_name = module_name
         self.name = name
@@ -58,17 +75,9 @@ class ImportedName(object):
 
         return self.project.get_module(self.module_name + '.' + self.name, self.filename)
 
-    def get_names(self):
-        return self.get_object().get_names()
-
-    def __getitem__(self, name):
-        return self.get_object()[name]
-
-    def __contains__(self, name):
-        return name in self.get_object()
 
 
-class AssignedName(object):
+class AssignedName(GetObjectDelegate):
     def __init__(self, idx, value):
         self.value = value
         self.idx = idx
@@ -79,18 +88,6 @@ class AssignedName(object):
             return obj
         else:
             return obj.op_getitem(self.idx)
-
-    def get_names(self):
-        return self.get_object().get_names()
-
-    def __getitem__(self, name):
-        return self.get_object()[name]
-
-    def __contains__(self, name):
-        return name in self.get_object()
-
-    def op_getitem(self, idx):
-        return self.get_object().op_getitem(idx)
 
 
 class RecursiveCallException(Exception):

@@ -1,7 +1,7 @@
 from supplement.evaluator import infer
 from supplement.scope import StaticScope
 
-from .helpers import pytest_funcarg__project
+from .helpers import pytest_funcarg__project, cleantabs
 
 def pytest_funcarg__scope(request):
     project = pytest_funcarg__project(request)
@@ -157,3 +157,30 @@ def test_fallback_to_safe_result_on_rec_func_eval(project):
 
     obj = infer('func()', scope)
     assert obj.get_names() == []
+
+def test_evaluation_of_func_must_find_any_meaning_result(project):
+    scope = project.create_scope('''
+        import os.path
+        def func():
+            return str('filename')
+            return ""
+    ''')
+
+    obj = infer('func()', scope)
+    assert 'lower' in obj
+
+def test_evaluation_of_function_object(project, tmpdir):
+    project.set_root(str(tmpdir))
+
+    m = tmpdir.join('toimport.py')
+    m.write(cleantabs('''
+        def func(arg):
+            return arg
+    '''))
+
+    scope = project.create_scope('''
+        import toimport
+    ''')
+
+    obj = infer('toimport.func([])', scope)
+    assert 'append' in obj

@@ -18,6 +18,8 @@ class Object(object):
     def __getitem__(self, name):
         raise KeyError(name)
 
+    def op_call(self, *args):
+        return None
 
 class ImportedObject(object):
     def __init__(self, node):
@@ -42,8 +44,18 @@ class ImportedObject(object):
 
 
 class FunctionObject(Object):
-    pass
+    def __init__(self, node, func):
+        Object.__init__(self, node)
+        self.func = func
 
+    def op_call(self, args):
+        module = self.project.get_module(self.func.__module__)
+        scope = module.get_scope_at(self.func.func_code.co_firstlineno)
+
+        if scope:
+            return scope.parent[scope.name].op_call(args)
+        else:
+            return Object(None)
 
 class ClassObject(Object):
     def __init__(self, node, cls):
@@ -172,7 +184,7 @@ def create_object(owner, obj, node=None):
         newobj = ImportedObject(node)
 
     elif type(obj) == FunctionType:
-        newobj = FunctionObject(node)
+        newobj = FunctionObject(node, obj)
 
     elif type(obj) in (ClassType, TypeType):
         newobj = ClassObject(node, obj)

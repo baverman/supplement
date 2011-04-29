@@ -1,15 +1,10 @@
 from supplement.assistant import assist
 
-from .helpers import cleantabs, pytest_funcarg__project
+from .helpers import pytest_funcarg__project, get_source_and_pos
 
-def do_assist(project, source, filename=None, pos=None):
+def do_assist(project, source, filename=None):
     filename = filename or 'test.py'
-
-    if not pos:
-        source = cleantabs(source)
-
-    pos = pos or len(source)
-
+    source, pos = get_source_and_pos(source)
     return assist(project, source, pos, filename)
 
 

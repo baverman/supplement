@@ -71,3 +71,11 @@ def cleantabs(text):
         return '\n'.join(l[toremove:] for l in lines)
     else:
         return '\n'.join(lines)
+
+def get_source_and_pos(source):
+    source = cleantabs(source)
+    pos = source.find('|')
+    if pos < 0:
+        pos = len(source)
+
+    return source, pos

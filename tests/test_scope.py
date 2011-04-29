@@ -6,7 +6,7 @@ from .helpers import cleantabs, pytest_funcarg__project
 def check_scope(project, source, names):
     def check(line, name):
         result = get_scope_at(project, source, line).fullname
-        assert result == name
+        assert result == name, "[%s] must be [%s] at line %d" % (result, name, line)
 
     for line, name in names.iteritems():
         check(line, name)
@@ -34,7 +34,7 @@ def test_function_scope(project):
         2: '',
         3: 'func',
         4: 'func',
-        5: ''
+        5: 'func'
     })
 
 def test_nested_scopes(project):
@@ -59,10 +59,10 @@ def test_nested_scopes(project):
         3: 'func1',
         4: 'func1.inner',
         5: 'func1.inner',
-        6: 'func1',
+        6: 'func1.inner',
         7: 'func1',
-        8: '',
-        9: '',
+        8: 'func1',
+        9: 'func1',
         10: 'func2',
     })
 
@@ -83,7 +83,7 @@ def test_class_scope(project):
         1: 'Cls',
         2: 'Cls',
         3: 'Cls.m1',
-        5: 'Cls',
+        5: 'Cls.m1',
         6: 'Cls.m2',
         7: 'Cls.m2',
         9: 'Cls.m2',

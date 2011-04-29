@@ -11,7 +11,7 @@ def traverse_tree(root):
         for r in traverse_tree(n):
             yield r
 
-def get_block_end(table, lines):
+def get_block_end(table, lines, continous):
     start = table.get_lineno() - 1
     start_line = lines[start]
 
@@ -33,39 +33,21 @@ def get_block_end(table, lines):
             if len(l) - len(stripped) <= indent:
                 break
 
+        if stripped or continous:
             last_line = i
     else:
         last_line = len(lines) + 1
 
     return last_line
 
-def get_scope_at(project, source, lineno, filename=None, ast_node=None):
+def get_scope_at(project, source, lineno, filename=None, ast_node=None, continous=True):
     ast_node = ast_node or ast.parse(source)
+
     scope = Scope(ast_node, '', None, 'module')
     scope.project = project
     scope.filename = filename
 
-    prev = None
-    for node in traverse_tree(scope):
-        if node.get_lineno() == lineno:
-            break
-
-        if node.get_lineno() > lineno:
-            node = prev
-            break
-
-        prev = node
-
-    lines = source.splitlines()
-    while node.parent:
-        end = get_block_end(node, lines)
-        if lineno <= end:
-            break
-
-        node = node.parent
-
-    node.current_line = lineno
-    return node
+    return scope.get_scope_at(source, lineno, continous)
 
 
 class Scope(object):
@@ -149,6 +131,29 @@ class Scope(object):
                 scope = scope.parent
 
         return self.project.get_module('__builtin__')[name]
+
+    def get_scope_at(self, source, lineno, continous=True):
+        prev = None
+        for node in traverse_tree(self):
+            if node.get_lineno() == lineno:
+                break
+
+            if node.get_lineno() > lineno:
+                node = prev
+                break
+
+            prev = node
+
+        lines = source.splitlines()
+        while node.parent:
+            end = get_block_end(node, lines, continous)
+            if lineno <= end:
+                break
+
+            node = node.parent
+
+        node.current_line = lineno
+        return node
 
 
 class CallScope(object):

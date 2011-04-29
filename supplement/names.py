@@ -112,18 +112,21 @@ class FunctionName(object):
         if self._calling:
             raise RecursiveCallException(self)
 
+        from .objects import Object
+
         self._calling = True
         try:
             for rvalue in ReturnExtractor().process(self.node):
                 try:
-                    return self.scope.get_call_scope(args).eval(rvalue, False)
+                    result = self.scope.get_call_scope(args).eval(rvalue, False)
+                    if result and type(result) is not Object:
+                        return result
                 except RecursiveCallException, e:
                     if not e.is_called_by(self):
                         raise
         finally:
             self._calling = False
 
-        from .objects import Object
         return Object(None)
 
 

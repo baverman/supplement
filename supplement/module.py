@@ -118,6 +118,11 @@ class Module(object):
         except AttributeError:
             pass
 
+        try:
+            del self._scope
+        except AttributeError:
+            pass
+
         self.attrs.clear()
 
     @property
@@ -155,3 +160,29 @@ class Module(object):
             getattr(self.module, name), self.node_provider[name])
 
         return obj
+
+    def get_scope(self):
+        try:
+            return self._scope
+        except AttributeError:
+            pass
+
+        node = self.node_provider.get_node()
+
+        if not node:
+            self._scope = scope = None
+        else:
+            from .scope import Scope
+
+            self._scope = scope = Scope(node, '', None, 'module')
+            scope.project = self.project
+            scope.filename = self.filename
+
+        return scope
+
+    def get_scope_at(self, lineno):
+        scope = self.get_scope()
+        if not scope:
+            return None
+
+        return scope.get_scope_at(self.get_source(), lineno)

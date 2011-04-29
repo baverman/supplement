@@ -148,7 +148,6 @@ def assist(project, source, position, filename):
             names = get_scope_names(scope)
         else:
             obj = infer(ctx, scope)
-            #print obj.project.get_module('supplement').get_names()
             names = [obj.get_names()]
     elif ctx_type == 'import':
         names = (project.get_possible_imports(ctx, filename),)

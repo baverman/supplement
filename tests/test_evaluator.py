@@ -184,3 +184,24 @@ def test_evaluation_of_function_object(project, tmpdir):
 
     obj = infer('toimport.func([])', scope)
     assert 'append' in obj
+
+def test_function_object_must_correctly_locate_its_source(project, tmpdir):
+    project.set_root(str(tmpdir))
+
+    m = tmpdir.join('toimport.py')
+    m.write(cleantabs('''
+        def func():
+            return []
+
+        oldfunc = func
+
+        def func(arg):
+            return {}
+    '''))
+
+    scope = project.create_scope('''
+        import toimport
+    ''')
+
+    obj = infer('toimport.oldfunc()', scope)
+    assert 'append' in obj

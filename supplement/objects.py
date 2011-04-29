@@ -53,7 +53,7 @@ class FunctionObject(Object):
         scope = module.get_scope_at(self.func.func_code.co_firstlineno)
 
         if scope:
-            return scope.parent[scope.name].op_call(args)
+            return scope.function.op_call(args)
         else:
             return Object(None)
 

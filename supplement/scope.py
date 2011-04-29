@@ -214,6 +214,7 @@ class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         scope = Scope(node, node.name, self.scope, 'func')
         scope.args = {}
+        scope.function = create_name((FunctionName, scope, node), scope)
         self.children.append(scope)
 
     def visit_ClassDef(self, node):

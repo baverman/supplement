@@ -58,6 +58,15 @@ class FunctionObject(Object):
             return Object(None)
 
 
+class MethodObject(Object):
+    def __init__(self, obj, func_obj):
+        self.object = obj
+        self.function = func_obj
+
+    def op_call(self, args):
+        return self.function.op_call([self.object] + args)
+
+
 class ClassObject(Object):
     def __init__(self, node, cls):
         Object.__init__(self, node)
@@ -118,7 +127,7 @@ class FakeInstanceObject(Object):
         return name in self.get_names()
 
     def __getitem__(self, name):
-        return self._class[name]
+        return wrap_in_method(self, self._class[name])
 
     def get_location():
         return None, None
@@ -167,7 +176,7 @@ class InstanceObject(Object):
                 self.node_provider[name])
             return obj
         else:
-            return self.get_class()[name]
+            return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
         return create_object(self, self.obj[idx])
@@ -175,6 +184,12 @@ class InstanceObject(Object):
     def get_value(self):
         return self.obj
 
+
+def wrap_in_method(obj, maybe_function):
+    if type(maybe_function) is FunctionObject:
+        return MethodObject(obj, maybe_function)
+
+    return maybe_function
 
 def create_object(owner, obj, node=None):
     from .module import Module

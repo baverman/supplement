@@ -169,14 +169,11 @@ def test_evaluation_of_func_must_find_any_meaning_result(project):
     obj = infer('func()', scope)
     assert 'lower' in obj
 
-def test_evaluation_of_function_object(project, tmpdir):
-    project.set_root(str(tmpdir))
-
-    m = tmpdir.join('toimport.py')
-    m.write(cleantabs('''
+def test_evaluation_of_function_object(project):
+    project.create_module('toimport', '''
         def func(arg):
             return arg
-    '''))
+    ''')
 
     scope = project.create_scope('''
         import toimport
@@ -185,11 +182,8 @@ def test_evaluation_of_function_object(project, tmpdir):
     obj = infer('toimport.func([])', scope)
     assert 'append' in obj
 
-def test_function_object_must_correctly_locate_its_source(project, tmpdir):
-    project.set_root(str(tmpdir))
-
-    m = tmpdir.join('toimport.py')
-    m.write(cleantabs('''
+def test_function_object_must_correctly_locate_its_source(project):
+    project.create_module('toimport', '''
         def func():
             return []
 
@@ -197,7 +191,7 @@ def test_function_object_must_correctly_locate_its_source(project, tmpdir):
 
         def func(arg):
             return {}
-    '''))
+    ''')
 
     scope = project.create_scope('''
         import toimport
@@ -205,3 +199,23 @@ def test_function_object_must_correctly_locate_its_source(project, tmpdir):
 
     obj = infer('toimport.oldfunc()', scope)
     assert 'append' in obj
+
+def test_dyn_method_call_must_know_exact_self_type(project):
+    project.create_module('toimport', '''
+        class Foo(object):
+            def bar(self):
+                return self
+
+        foo = Foo()
+    ''')
+
+    scope = project.create_scope('''
+        from toimport import Foo, foo
+    ''')
+
+    obj = infer('foo.bar()', scope)
+    assert 'bar' in obj
+
+    obj = infer('Foo().bar()', scope)
+    assert 'bar' in obj
+

@@ -7,7 +7,6 @@ def do_assist(project, source, filename=None):
     source, pos = get_source_and_pos(source)
     return assist(project, source, pos, filename)
 
-
 def test_assist_for_watcher_raises_KeyError(project):
     result = do_assist(project, '''
         from supplement import watcher
@@ -16,7 +15,7 @@ def test_assist_for_watcher_raises_KeyError(project):
     assert 'run_loop' in result
     assert 'monitor' in result
 
-def test_eval_of_os_path_absname(project):
+def test_eval_of_os_path_abspath(project):
     result = do_assist(project, '''
         from os.path import abspath
         abspath('').''')

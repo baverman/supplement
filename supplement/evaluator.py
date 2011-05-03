@@ -2,19 +2,12 @@ import ast
 
 from .objects import create_object
 
-def get_name(name, scope):
-    project = scope.project
-
-    while scope:
-        try:
-            return scope[name]
-        except KeyError:
-            scope = scope.parent
-
-    return project.get_module('__builtin__')[name]
-
-def infer(string, scope):
+def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
+
+    if lineno:
+        ast.increment_lineno(tree, lineno-1)
+
     return Evaluator().process(tree, scope)
 
 
@@ -86,7 +79,7 @@ class Evaluator(ast.NodeVisitor):
         return self.stack.pop()
 
     def visit_Name(self, node):
-        self.push(get_name(node.id, self.scope))
+        self.push(self.scope.find_name(node.id, node.lineno))
 
     def visit_IfExp(self, node):
         self.visit(node.body)

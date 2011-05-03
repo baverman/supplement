@@ -198,12 +198,23 @@ class CallScope(object):
     def __contains__(self, name):
         return name in self.get_names()
 
-    def __getitem__(self, name):
-        obj = self.parent[name]
+    def find_name(self, name, lineno=None):
+        try:
+            return self.get_name(name, lineno)
+        except KeyError:
+            pass
+
+        return self.parent.parent.find_name(name)
+
+    def get_name(self, name, lineno=None):
+        obj = self.parent.get_name(name, lineno)
         if isinstance(obj, ArgumentName):
             return self.args[obj.index]
 
         return obj
+
+    def __getitem__(self, name):
+        return self.get_name(name)
 
     def get_lineno(self):
         return self.parent.get_lineno()
@@ -229,10 +240,16 @@ class StaticScope(object):
     def get_names(self):
         return self._names
 
+    def find_name(self, name, lineno=None):
+        return Scope.__dict__['find_name'](self, name, lineno)
+
     def __contains__(self, name):
         return name in self._names
 
     def __getitem__(self, name):
+        return self._names[name]
+
+    def get_name(self, name, lineno=None):
         return self._names[name]
 
 

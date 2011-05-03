@@ -76,10 +76,10 @@ def test_eval_of_multi_assigned_name_from_imported_seq(project):
         d, l = toimport.value
     ''')
 
-    obj = infer('d', scope)
+    obj = infer('d', scope, 3)
     assert 'iterkeys' in obj
 
-    obj = infer('l', scope)
+    obj = infer('l', scope, 3)
     assert 'append' in obj
 
 def test_eval_of_seq_item_get(project):
@@ -89,10 +89,10 @@ def test_eval_of_seq_item_get(project):
         l = seq_value[1]
     ''')
 
-    obj = infer('d', scope)
+    obj = infer('d', scope, 4)
     assert 'iterkeys' in obj
 
-    obj = infer('l', scope)
+    obj = infer('l', scope, 4)
     assert 'append' in obj
 
 def test_eval_of_dict_item_get(project):
@@ -102,10 +102,10 @@ def test_eval_of_dict_item_get(project):
         l = dict_value[2]
     ''')
 
-    obj = infer('d', scope)
+    obj = infer('d', scope, 4)
     assert 'iterkeys' in obj
 
-    obj = infer('l', scope)
+    obj = infer('l', scope, 4)
     assert 'append' in obj
 
 def test_eval_of_function_call_without_arguments(project):
@@ -123,7 +123,7 @@ def test_eval_of_function_call_with_arguments(project):
             return arg
     ''')
 
-    obj = infer('func([])', scope)
+    obj = infer('func([])', scope, 3)
     assert 'append' in obj
 
 def test_eval_of_recursive_function_call(project):
@@ -133,7 +133,7 @@ def test_eval_of_recursive_function_call(project):
             return []
     ''')
 
-    obj = infer('func()', scope)
+    obj = infer('func()', scope, 4)
     assert 'append' in obj
 
 def test_eval_of_ping_pong_call(project):
@@ -146,7 +146,7 @@ def test_eval_of_ping_pong_call(project):
             return ping()
     ''')
 
-    obj = infer('ping()', scope)
+    obj = infer('ping()', scope, 7)
     assert 'append' in obj
 
 def test_fallback_to_safe_result_on_rec_func_eval(project):
@@ -155,7 +155,7 @@ def test_fallback_to_safe_result_on_rec_func_eval(project):
             return func()
     ''')
 
-    obj = infer('func()', scope)
+    obj = infer('func()', scope, 3)
     assert obj.get_names() == []
 
 def test_evaluation_of_func_must_find_any_meaning_result(project):
@@ -166,7 +166,7 @@ def test_evaluation_of_func_must_find_any_meaning_result(project):
             return ""
     ''')
 
-    obj = infer('func()', scope)
+    obj = infer('func()', scope, 5)
     assert 'lower' in obj
 
 def test_evaluation_of_function_object(project):
@@ -217,10 +217,10 @@ def test_dyn_method_call_must_know_exact_self_type(project):
         from toimport import Bar, bar
     ''')
 
-    obj = infer('bar.foo()', scope)
+    obj = infer('bar.foo()', scope, 2)
     assert 'bar' in obj
 
-    obj = infer('Bar().foo()', scope)
+    obj = infer('Bar().foo()', scope, 2)
     assert 'bar' in obj
 
 def test_method_scope_must_know_self_type(project):
@@ -233,5 +233,5 @@ def test_method_scope_must_know_self_type(project):
                 pass
     '''), 3)
 
-    obj = infer('self', scope)
+    obj = infer('self', scope, 7)
     assert 'bar' in obj

@@ -57,7 +57,6 @@ class Scope(object):
         self.parent = parent
         self._attrs = {}
         self.type = type
-        self.current_line = None
 
         if parent:
             self.project = parent.project
@@ -90,31 +89,54 @@ class Scope(object):
 
         raise KeyError(name)
 
-    def get_names(self):
+    def get_names(self, lineno=None):
         try:
-            return self._names
+            self._names
         except AttributeError:
-            pass
+            self._names, starred_imports = NameExtractor().process(self.node, self)
+            for m, line in starred_imports:
+                for name in self.project.get_module(m, self.filename).get_names():
+                    self._names.setdefault(name, []).append((line, (ImportedName, m, name)))
+                    self._names[name].sort(reverse=True)
 
-        self._names, starred_imports = NameExtractor().process(self.node, self, self.current_line)
-        for m, lineno in starred_imports:
-            for name in self.project.get_module(m, self.filename).get_names():
-                self._names[name] = ImportedName, m, name
+        if lineno is None:
+            return self._names
 
-        return self._names
+        result = []
+        for name, names in self._names.iteritems():
+            if any(line <= lineno for line, _ in names):
+                result.append(name)
+
+        return result
 
     def __contains__(self, name):
         return name in self.get_names()
 
-    def __getitem__(self, name):
+    def get_name(self, name, lineno=None):
         try:
-            return self._attrs[name]
+            names = self._attrs[name]
         except KeyError:
-            pass
+            try:
+                node_names = self._names[name]
+            except AttributeError:
+                self.get_names()
+                node_names = self._names[name]
 
-        node = self.get_names()[name]
-        obj = self._attrs[name] = create_name(node, self)
-        return obj
+            names = self._attrs[name] = []
+            for line, node in node_names:
+                names.append((line, create_name(node, self)))
+
+        if lineno is None:
+            return names[0][1]
+
+        for line, name in names:
+            if line <= lineno:
+                return name
+
+        raise KeyError(name)
+
+    def __getitem__(self, name):
+        return self.get_name(name)
 
     def eval(self, node, skip_toplevel=True):
         return Evaluator().process(node, self, skip_toplevel)
@@ -122,8 +144,13 @@ class Scope(object):
     def get_call_scope(self, args):
         return CallScope(self, args)
 
-    def find_name(self, name):
-        scope = self
+    def find_name(self, name, lineno=None):
+        try:
+            return self.get_name(name, lineno)
+        except KeyError:
+            pass
+
+        scope = self.parent
         while scope:
             try:
                 return scope[name]
@@ -152,7 +179,6 @@ class Scope(object):
 
             node = node.parent
 
-        node.current_line = lineno
         return node
 
 
@@ -230,36 +256,32 @@ class ScopeExtractor(ast.NodeVisitor):
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
-        if self.below_current_line(node): return
-        self.names[node.name] = FunctionName, self.scope.get_child_by_name(node.name), node
+        self.add_name(node.name,
+            (FunctionName, self.scope.get_child_by_name(node.name), node), node.lineno)
 
     def visit_ImportFrom(self, node):
-        if self.below_current_line(node): return
         for n in node.names:
             module_name = '.' * node.level + node.module
             if n.name == '*':
                 self.starred_imports.append((module_name, node.lineno))
             else:
                 name = n.asname if n.asname else n.name
-                self.names[name] = ImportedName, module_name, name
+                self.add_name(name, (ImportedName, module_name, name), node.lineno)
 
     def visit_Import(self, node):
-        if self.below_current_line(node): return
         for n in node.names:
             if n.asname:
                 self.names[n.asname] = ModuleName, n.name
             else:
                 name, _, tail = n.name.partition('.')
-                self.names[name] = ModuleName, name, set()
+                self.add_name(name, (ModuleName, name, set()), node.lineno)
                 if tail:
                     self.additional_imports.setdefault(name, []).append(tail)
 
     def visit_ClassDef(self, node):
-        if self.below_current_line(node): return
-        self.names[node.name] = 'ClassName', node
+        self.add_name(node.name, ('ClassName', node), node.lineno)
 
     def visit_Assign(self, node):
-        if self.below_current_line(node): return
         if isinstance(node.targets[0], ast.Tuple):
             targets = enumerate(node.targets[0].elts)
         else:
@@ -267,29 +289,32 @@ class NameExtractor(ast.NodeVisitor):
 
         for i, n in targets:
             if isinstance(n,  ast.Name):
-                self.names[n.id] = AssignedName, i, Value(self.scope, node.value)
+                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value)), n.lineno)
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):
-            self.names[n.id] = ArgumentName, self.scope, i, n.id
+            self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
             self.scope.args[i] = n.id
 
-    def below_current_line(self, node):
-        return self.current_line is not None and node.lineno > self.current_line
+    def add_name(self, name, value, lineno):
+        if name in self.names:
+            self.names[name].insert(0, (lineno, value))
+        else:
+            self.names[name] = [(lineno, value)]
 
-    def process(self, node, scope, current_line):
+    def process(self, node, scope):
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
         self.names = {}
-        self.current_line = current_line
 
         self.generic_visit(node)
 
         for k, v in self.additional_imports.iteritems():
-            if self.names[k][0] is not ModuleName:
-                continue
+            for line, name in self.names[k]:
+                if name[0] is not ModuleName:
+                    continue
 
-            self.names[k][2].update(v)
+                name[2].update(v)
 
         return self.names, self.starred_imports

@@ -110,10 +110,10 @@ def test_name_reassigning_in_topmost_scope(project):
     ''')
 
     scope = get_scope_at(project, source, 2)
-    obj = scope['test']
+
+    obj = scope.get_name('test', 2)
     assert 'append' in obj
 
-    scope = get_scope_at(project, source, 3)
     obj = scope['test']
     assert 'iterkeys' in obj
 
@@ -127,10 +127,10 @@ def test_name_reassigning_in_inner_scope(project):
     ''')
 
     scope = get_scope_at(project, source, 4)
-    obj = scope.find_name('test')
+
+    obj = scope.find_name('test', 4)
     assert 'append' in obj
 
-    scope = get_scope_at(project, source, 5)
     obj = scope['test']
     assert 'iterkeys' in obj
 
@@ -142,9 +142,9 @@ def test_argument_reassigning(project):
     ''')
 
     scope = get_scope_at(project, source, 2)
-    obj = scope['test']
+
+    obj = scope.get_name('test', 2)
     assert isinstance(obj, ArgumentName)
 
-    scope = get_scope_at(project, source, 3)
     obj = scope['test']
     assert 'iterkeys' in obj

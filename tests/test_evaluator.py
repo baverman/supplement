@@ -1,5 +1,5 @@
 from supplement.evaluator import infer
-from supplement.scope import StaticScope
+from supplement.scope import StaticScope, get_scope_at
 
 from .helpers import pytest_funcarg__project, cleantabs
 
@@ -203,19 +203,35 @@ def test_function_object_must_correctly_locate_its_source(project):
 def test_dyn_method_call_must_know_exact_self_type(project):
     project.create_module('toimport', '''
         class Foo(object):
+            def foo(self):
+                return self.bar()
+
+        class Bar(Foo):
             def bar(self):
                 return self
 
-        foo = Foo()
+        bar = Bar()
     ''')
 
     scope = project.create_scope('''
-        from toimport import Foo, foo
+        from toimport import Bar, bar
     ''')
 
-    obj = infer('foo.bar()', scope)
+    obj = infer('bar.foo()', scope)
     assert 'bar' in obj
 
-    obj = infer('Foo().bar()', scope)
+    obj = infer('Bar().foo()', scope)
     assert 'bar' in obj
 
+def test_method_scope_must_know_self_type(project):
+    scope = get_scope_at(project, cleantabs('''
+        class Foo(object):
+            def foo(self):
+                return self
+
+            def bar(self):
+                pass
+    '''), 3)
+
+    obj = infer('self', scope)
+    assert 'bar' in obj

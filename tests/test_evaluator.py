@@ -156,7 +156,7 @@ def test_fallback_to_safe_result_on_rec_func_eval(project):
     ''')
 
     obj = infer('func()', scope, 3)
-    assert obj.get_names() == []
+    assert not obj.get_names()
 
 def test_evaluation_of_func_must_find_any_meaning_result(project):
     scope = project.create_scope('''

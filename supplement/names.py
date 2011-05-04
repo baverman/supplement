@@ -1,6 +1,7 @@
 from .tree import ReturnExtractor
+from .common import Object, UnknownObject, GetObjectDelegate
 
-class ModuleName(object):
+class ModuleName(Object):
     def __init__(self, name, additional=None):
         self.name = name
         self.additional = additional
@@ -26,9 +27,6 @@ class ModuleName(object):
 
         return self._names
 
-    def __contains__(self, name):
-        return name in self.get_names()
-
     def __getitem__(self, name):
         try:
             modules = self.modules
@@ -44,23 +42,6 @@ class ModuleName(object):
         return self.project.get_module(self.name, self.filename)[name]
 
 
-class GetObjectDelegate(object):
-    def get_names(self):
-        return self.get_object().get_names()
-
-    def __getitem__(self, name):
-        return self.get_object()[name]
-
-    def __contains__(self, name):
-        return name in self.get_object()
-
-    def op_call(self, args):
-        return self.get_object().op_call(args)
-
-    def op_getitem(self, idx):
-        return self.get_object().op_getitem(idx)
-
-
 class ImportedName(GetObjectDelegate):
     def __init__(self, module_name, name):
         self.module_name = module_name
@@ -74,7 +55,6 @@ class ImportedName(GetObjectDelegate):
             pass
 
         return self.project.get_module(self.module_name + '.' + self.name, self.filename)
-
 
 
 class AssignedName(GetObjectDelegate):
@@ -98,7 +78,7 @@ class RecursiveCallException(Exception):
         return obj is self.object
 
 
-class FunctionName(object):
+class FunctionName(Object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node
@@ -108,8 +88,6 @@ class FunctionName(object):
 
         if self._calling:
             raise RecursiveCallException(self)
-
-        from .objects import Object
 
         self._calling = True
         try:
@@ -124,14 +102,15 @@ class FunctionName(object):
         finally:
             self._calling = False
 
-        return Object(None)
+        return UnknownObject()
 
 
-class ArgumentName(object):
+class ArgumentName(Object):
     def __init__(self, scope, index, name):
         self.scope = scope
         self.index = index
         self.name = name
+
 
 def create_name(node, owner):
     obj = node[0](*node[1:])

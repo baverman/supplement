@@ -1,27 +1,17 @@
 from types import FunctionType, ClassType, TypeType, ModuleType
 
 from .tree import CtxNodeProvider
+from .common import Object, GetObjectDelegate
 
-class Object(object):
+class LocationObject(Object):
     def __init__(self, node):
         self.node = node
 
     def get_location(self):
         return self.node[-1].lineno, self.filename
 
-    def get_names(self):
-        return []
 
-    def __contains__(self, name):
-        return False
-
-    def __getitem__(self, name):
-        raise KeyError(name)
-
-    def op_call(self, *args):
-        return None
-
-class ImportedObject(object):
+class ImportedObject(GetObjectDelegate):
     def __init__(self, node):
         self.node = node
 
@@ -30,22 +20,10 @@ class ImportedObject(object):
         module = self.project.get_module(inode.module, self.filename)
         return module[name]
 
-    def get_location(self):
-        return self.get_object().get_location()
 
-    def get_names(self):
-        return self.get_object().get_names()
-
-    def __contains__(self, name):
-        return name in self.get_object()
-
-    def __getitem__(self, name):
-        return self.get_object()[name]
-
-
-class FunctionObject(Object):
+class FunctionObject(LocationObject):
     def __init__(self, node, func):
-        Object.__init__(self, node)
+        LocationObject.__init__(self, node)
         self.func = func
 
     def op_call(self, args):
@@ -58,18 +36,21 @@ class FunctionObject(Object):
             return Object(None)
 
 
-class MethodObject(Object):
+class MethodObject(GetObjectDelegate):
     def __init__(self, obj, func_obj):
         self.object = obj
         self.function = func_obj
+
+    def get_object(self):
+        return self.function
 
     def op_call(self, args):
         return self.function.op_call([self.object] + args)
 
 
-class ClassObject(Object):
+class ClassObject(LocationObject):
     def __init__(self, node, cls):
-        Object.__init__(self, node)
+        LocationObject.__init__(self, node)
         self.cls = cls
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
@@ -97,9 +78,6 @@ class ClassObject(Object):
     def op_call(self, args):
         return FakeInstanceObject(self)
 
-    def __contains__(self, name):
-        return name in self.get_names()
-
     def __getitem__(self, name):
         try:
             return self._attrs[name]
@@ -117,25 +95,18 @@ class ClassObject(Object):
 
 class FakeInstanceObject(Object):
     def __init__(self, class_obj):
-        Object.__init__(self, ('undefined', None))
         self._class = class_obj
 
     def get_names(self):
         return self._class.get_names()
 
-    def __contains__(self, name):
-        return name in self.get_names()
-
     def __getitem__(self, name):
         return wrap_in_method(self, self._class[name])
 
-    def get_location():
-        return None, None
 
-
-class InstanceObject(Object):
+class InstanceObject(LocationObject):
     def __init__(self, node, obj):
-        Object.__init__(self, node)
+        LocationObject.__init__(self, node)
         self.obj = obj
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
@@ -161,9 +132,6 @@ class InstanceObject(Object):
 
         all_names.update(names)
         return all_names
-
-    def __contains__(self, name):
-        return name in self.get_names()
 
     def __getitem__(self, name):
         try:

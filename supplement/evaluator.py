@@ -22,7 +22,7 @@ class Value(object):
         except AttributeError:
             pass
 
-        self._object = Evaluator().process(self.value, self.scope, False)
+        self._object = self.scope.eval(self.value, False)
         return self._object
 
 

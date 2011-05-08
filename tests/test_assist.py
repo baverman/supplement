@@ -3,16 +3,11 @@ import pytest
 
 from supplement.assistant import assist
 
-from .helpers import pytest_funcarg__project, cleantabs
+from .helpers import pytest_funcarg__project, get_source_and_pos
 
-def do_assist(project, source, filename=None, pos=None):
+def do_assist(project, source, filename=None):
     filename = filename or 'test.py'
-
-    if not pos:
-        source = cleantabs(source)
-
-    pos = pos or len(source)
-
+    source, pos = get_source_and_pos(source)
     return assist(project, source, pos, filename)
 
 def test_assist_for_module_names(project):
@@ -260,3 +255,12 @@ def test_assist_for_names_in_changed_module(project, tmpdir):
 
     result = get_result()
     assert result == ['name1', 'name2']
+
+def test_assist_must_not_show_names_below_current_cursor(project):
+    result = do_assist(project, '''
+        name1 = 1
+        name|
+        name2 = 2
+    ''')
+
+    assert result == ['name1']

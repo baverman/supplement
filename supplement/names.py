@@ -105,6 +105,12 @@ class FunctionName(Object):
         return UnknownObject()
 
 
+class ClassName(Object):
+    def __init__(self, scope, node):
+        self.scope = scope
+        self.node = node
+
+
 class ArgumentName(Object):
     def __init__(self, scope, index, name):
         self.scope = scope

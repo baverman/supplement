@@ -4,10 +4,11 @@ from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
 from .evaluator import infer
 
-def get_scope_names(scope):
+def get_scope_names(scope, lineno=None):
     project = scope.project
     while scope:
-        yield scope.get_names()
+        yield scope.get_names(lineno)
+        lineno = None
         scope = scope.parent
 
     m = project.get_module('__builtin__')
@@ -145,7 +146,7 @@ def assist(project, source, position, filename):
 
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         if not ctx:
-            names = get_scope_names(scope)
+            names = get_scope_names(scope, lineno)
         else:
             obj = infer(ctx, scope, position)
             names = [obj.get_names()]

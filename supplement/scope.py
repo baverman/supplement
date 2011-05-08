@@ -1,6 +1,7 @@
 import ast
 
-from .names import create_name, ModuleName, ImportedName, AssignedName, FunctionName, ArgumentName
+from .names import create_name, ModuleName, ImportedName, AssignedName
+from .names import FunctionName, ArgumentName, ClassName
 from .evaluator import Value, Evaluator
 
 UNSUPPORTED_ASSIGNMENTS = ast.Subscript, ast.Attribute
@@ -88,6 +89,13 @@ class Scope(object):
                 return c
 
         raise KeyError(name)
+
+    def get_child_by_lineno(self, lineno):
+        for c in self.get_children():
+            if c.get_lineno() == lineno:
+                return c
+
+        raise KeyError('lineno: ' + lineno)
 
     def get_names(self, lineno=None):
         try:
@@ -261,7 +269,9 @@ class ScopeExtractor(ast.NodeVisitor):
         self.children.append(scope)
 
     def visit_ClassDef(self, node):
-        self.children.append(Scope(node, node.name, self.scope, 'class'))
+        scope = Scope(node, node.name, self.scope, 'class')
+        scope.cls = create_name((ClassName, scope, node), scope)
+        self.children.append(scope)
 
     def process(self, scope):
         self.children = []
@@ -273,8 +283,8 @@ class ScopeExtractor(ast.NodeVisitor):
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
-        self.add_name(node.name,
-            (FunctionName, self.scope.get_child_by_name(node.name), node), node.lineno)
+        function_scope = self.scope.get_child_by_lineno(node.lineno)
+        self.add_name(node.name, (FunctionName, function_scope, node), node.lineno)
 
     def visit_ImportFrom(self, node):
         for n in node.names:
@@ -296,7 +306,8 @@ class NameExtractor(ast.NodeVisitor):
                     self.additional_imports.setdefault(name, []).append(tail)
 
     def visit_ClassDef(self, node):
-        self.add_name(node.name, ('ClassName', node), node.lineno)
+        class_scope = self.scope.get_child_by_lineno(node.lineno)
+        self.add_name(node.name, (ClassName, class_scope, node), node.lineno)
 
     def visit_Assign(self, node):
         if isinstance(node.targets[0], ast.Tuple):

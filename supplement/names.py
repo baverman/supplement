@@ -1,5 +1,7 @@
+import ast
+
 from .tree import ReturnExtractor
-from .common import Object, UnknownObject, GetObjectDelegate
+from .common import Object, UnknownObject, GetObjectDelegate, Value
 
 class ModuleName(Object):
     def __init__(self, name, additional=None):
@@ -116,6 +118,73 @@ class ArgumentName(Object):
         self.scope = scope
         self.index = index
         self.name = name
+
+
+class NameExtractor(ast.NodeVisitor):
+    def visit_FunctionDef(self, node):
+        function_scope = self.scope.get_child_by_lineno(node.lineno)
+        self.add_name(node.name, (FunctionName, function_scope, node), node.lineno)
+
+    def visit_ImportFrom(self, node):
+        for n in node.names:
+            module_name = '.' * node.level + node.module
+            if n.name == '*':
+                self.starred_imports.append((module_name, node.lineno))
+            else:
+                name = n.asname if n.asname else n.name
+                self.add_name(name, (ImportedName, module_name, name), node.lineno)
+
+    def visit_Import(self, node):
+        for n in node.names:
+            if n.asname:
+                self.names[n.asname] = ModuleName, n.name
+            else:
+                name, _, tail = n.name.partition('.')
+                self.add_name(name, (ModuleName, name, set()), node.lineno)
+                if tail:
+                    self.additional_imports.setdefault(name, []).append(tail)
+
+    def visit_ClassDef(self, node):
+        class_scope = self.scope.get_child_by_lineno(node.lineno)
+        self.add_name(node.name, (ClassName, class_scope, node), node.lineno)
+
+    def visit_Assign(self, node):
+        if isinstance(node.targets[0], ast.Tuple):
+            targets = enumerate(node.targets[0].elts)
+        else:
+            targets = ((None, r) for r in node.targets)
+
+        for i, n in targets:
+            if isinstance(n,  ast.Name):
+                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value)), n.lineno)
+
+    def visit_arguments(self, node):
+        for i, n in enumerate(node.args):
+            self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
+            self.scope.args[i] = n.id
+
+    def add_name(self, name, value, lineno):
+        if name in self.names:
+            self.names[name].insert(0, (lineno, value))
+        else:
+            self.names[name] = [(lineno, value)]
+
+    def process(self, node, scope):
+        self.scope = scope
+        self.starred_imports = []
+        self.additional_imports = {}
+        self.names = {}
+
+        self.generic_visit(node)
+
+        for k, v in self.additional_imports.iteritems():
+            for line, name in self.names[k]:
+                if name[0] is not ModuleName:
+                    continue
+
+                name[2].update(v)
+
+        return self.names, self.starred_imports
 
 
 def create_name(node, owner):

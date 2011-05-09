@@ -39,3 +39,18 @@ class GetObjectDelegate(object):
 
 
 class UnknownObject(Object): pass
+
+
+class Value(object):
+    def __init__(self, scope, value):
+        self.scope = scope
+        self.value = value
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        self._object = self.scope.eval(self.value, False)
+        return self._object

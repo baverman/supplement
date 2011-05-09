@@ -1,6 +1,7 @@
 import ast
 
 from .objects import create_object
+from .common import Value
 
 def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
@@ -9,21 +10,6 @@ def infer(string, scope, lineno=None):
         ast.increment_lineno(tree, lineno-1)
 
     return Evaluator().process(tree, scope)
-
-
-class Value(object):
-    def __init__(self, scope, value):
-        self.scope = scope
-        self.value = value
-
-    def get_object(self):
-        try:
-            return self._object
-        except AttributeError:
-            pass
-
-        self._object = self.scope.eval(self.value, False)
-        return self._object
 
 
 class Indexable(object):

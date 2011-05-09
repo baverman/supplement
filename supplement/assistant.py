@@ -148,7 +148,7 @@ def assist(project, source, position, filename):
         if not ctx:
             names = get_scope_names(scope, lineno)
         else:
-            obj = infer(ctx, scope, position)
+            obj = infer(ctx, scope, lineno)
             names = [obj.get_names()]
     elif ctx_type == 'import':
         names = (project.get_possible_imports(ctx, filename),)

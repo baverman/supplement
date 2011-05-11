@@ -163,18 +163,19 @@ def create_object(owner, obj, node=None):
     from .module import Module
 
     node = node or ('undefined', None)
+    obj_type = type(obj)
 
     if node[0] == 'imported':
         newobj = ImportedObject(node)
 
-    elif type(obj) == FunctionType:
+    elif obj_type == FunctionType:
         newobj = FunctionObject(node, obj)
 
-    elif type(obj) in (ClassType, TypeType):
-        newobj = ClassObject(node, obj)
-
-    elif type(obj) == ModuleType:
+    elif obj_type == ModuleType:
         return Module(owner.project, obj.__name__)
+
+    elif obj_type == ClassType or issubclass(obj_type, type):
+        newobj = ClassObject(node, obj)
 
     else:
         newobj = InstanceObject(node, obj)

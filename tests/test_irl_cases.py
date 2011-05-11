@@ -21,3 +21,10 @@ def test_eval_of_os_path_abspath(project):
         abspath('').''')
 
     assert 'lower' in result
+
+def test_assist_for_gtk_object_attributes(project):
+    result = do_assist(project, '''
+        import gtk
+        gtk.Window().''')
+
+    assert 'activate' in result

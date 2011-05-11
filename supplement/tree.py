@@ -32,7 +32,7 @@ class NodeProvider(object):
 
     def __getitem__(self, name):
         try:
-            return self.nodes[name]
+            return self.nodes.get(name, None)
         except AttributeError:
             pass
 
@@ -41,7 +41,7 @@ class NodeProvider(object):
             return ('undefined', None)
         else:
             self.nodes = NameExtractor().process(self.get_node())
-            return self.nodes[name]
+            return self.nodes.get(name, None)
 
 
 class CtxNodeProvider(NodeProvider):

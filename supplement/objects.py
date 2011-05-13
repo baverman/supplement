@@ -1,7 +1,29 @@
-from types import FunctionType, ClassType, TypeType, ModuleType
+from types import FunctionType, ClassType, ModuleType
 
 from .tree import CtxNodeProvider
 from .common import Object, GetObjectDelegate
+
+def dir_top(obj):
+    try:
+        return obj.__dict__
+    except AttributeError:
+        pass
+
+    try:
+        return obj.__members__
+    except AttributeError:
+        pass
+
+    return []
+
+def get_attr(obj, name):
+    try:
+        return obj.__dict__[name]
+    except AttributeError:
+        pass
+
+    return getattr(obj, name)
+
 
 class LocationObject(Object):
     def __init__(self, node):
@@ -48,6 +70,18 @@ class MethodObject(GetObjectDelegate):
         return self.function.op_call([self.object] + args)
 
 
+class DescriptorObject(GetObjectDelegate):
+    def __init__(self, owner, obj):
+        self.owner = owner
+        self.object = obj
+
+    def get_object(self):
+        if isinstance(self.owner, ClassObject):
+            return create_object(self.owner, self.object.obj.__get__(None, self.owner.cls))
+
+        return self.object
+
+
 class ClassObject(LocationObject):
     def __init__(self, node, cls):
         LocationObject.__init__(self, node)
@@ -86,11 +120,12 @@ class ClassObject(LocationObject):
 
         cls = self.get_names()[name][0]
         if cls is self.cls:
-            obj = self._attrs[name] = create_object(self, cls.__dict__[name],
-                self.node_provider[name])
-            return obj
+            obj = self._attrs[name] = create_object(self,
+                cls.__dict__[name], self.node_provider[name])
+            return wrap_in_descriptor(self, obj)
         else:
-            return self.project.get_module(cls.__module__)[cls.__name__][name]
+            return wrap_in_descriptor(self,
+                self.project.get_module(cls.__module__)[cls.__name__][name])
 
 
 class FakeInstanceObject(Object):
@@ -118,7 +153,13 @@ class InstanceObject(LocationObject):
             pass
 
         cls = self.obj.__class__
-        self._class = self.project.get_module(cls.__module__)[cls.__name__]
+        module = self.project.get_module(cls.__module__)
+
+        try:
+            self._class = module[cls.__name__]
+        except KeyError:
+            self._class = create_object(module, cls)
+
         return self._class
 
     def get_names(self):
@@ -127,7 +168,7 @@ class InstanceObject(LocationObject):
             names = self._names
         except AttributeError:
             names = self._names = set()
-            for k in getattr(self.obj, '__dict__', []):
+            for k in dir_top(self.obj):
                 self._names.add(k)
 
         all_names.update(names)
@@ -140,7 +181,7 @@ class InstanceObject(LocationObject):
             pass
 
         if name in self.get_names() and name in self._names:
-            obj = self._attrs[name] = create_object(self, self.obj.__dict__[name],
+            obj = self._attrs[name] = create_object(self, get_attr(self.obj, name),
                 self.node_provider[name])
             return obj
         else:
@@ -152,12 +193,27 @@ class InstanceObject(LocationObject):
     def get_value(self):
         return self.obj
 
+    def is_descriptor(self):
+        try:
+            self.obj.__get__
+            return True
+        except AttributeError:
+            return False
 
-def wrap_in_method(obj, maybe_function):
-    if type(maybe_function) is FunctionObject:
-        return MethodObject(obj, maybe_function)
 
-    return maybe_function
+def wrap_in_method(obj, attr):
+    if type(attr) is FunctionObject:
+        return MethodObject(obj, attr)
+
+    return attr
+
+def wrap_in_descriptor(obj, attr):
+    if isinstance(attr, DescriptorObject):
+        attr.owner = obj
+    elif not isinstance(attr, FunctionObject) and attr.is_descriptor():
+        return DescriptorObject(obj, attr)
+
+    return attr
 
 def create_object(owner, obj, node=None):
     from .module import Module

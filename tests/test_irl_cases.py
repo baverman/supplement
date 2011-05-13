@@ -28,3 +28,10 @@ def test_assist_for_gtk_object_attributes(project):
         gtk.Window().''')
 
     assert 'activate' in result
+
+def test_assist_for_gtk_class_properties(project):
+    result = do_assist(project, '''
+        import gtk
+        gtk.Window.props.''')
+
+    assert 'has_focus' in result

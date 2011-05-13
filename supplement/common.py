@@ -17,6 +17,9 @@ class Object(object):
     def op_getitem(self, idx):
         return UnknownObject()
 
+    def is_descriptor(self):
+        return False
+
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -36,6 +39,9 @@ class GetObjectDelegate(object):
 
     def get_location(self):
         return self.get_object().get_location()
+
+    def is_descriptor(self):
+        return self.get_object().is_descriptor()
 
 
 class UnknownObject(Object): pass

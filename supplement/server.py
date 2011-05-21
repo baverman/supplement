@@ -9,9 +9,9 @@ class Server(object):
         self.conn = conn
         self.projects = {}
 
-    def get_project_token(self, path):
+    def get_project_token(self, path, config):
         token = uuid.uuid1()
-        p = Project(path)
+        p = Project(path, config)
         self.projects[token] = p
         return token
 

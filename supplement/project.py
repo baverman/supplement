@@ -5,9 +5,22 @@ from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
 
 class Project(object):
-    def __init__(self, root):
+    def __init__(self, root, config=None):
         self.root = root
-        self.paths = [abspath(root)] + sys.path
+        self.config = config or {}
+
+        self.paths = []
+        if 'sources' in self.config:
+            for p in self.config['sources']:
+                self.paths.append(join(abspath(root), p))
+        else:
+            self.paths.append(abspath(root))
+
+        for p in self.config.get('libs', []):
+            self.paths.append(p)
+
+        self.paths.extend(sys.path)
+
         self.ast_provider = AstProvider()
         self.module_provider = ModuleProvider()
         self.package_resolver = PackageResolver()

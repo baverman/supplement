@@ -15,6 +15,19 @@ def test_project_token():
     assert p1 != p2
 
 @pytest.mark.slow
+def test_project_config():
+    env = Environment()
+    env.run()
+    p = env.get_project_token('.', config={'libs':['/usr/lib/python2.7/site-packages/exo-0.6']})
+
+    source = cleantabs('''
+        from exo import IconView
+        IconView().props.''')
+
+    result = env.assist(p, source, len(source), 'test.py')
+    assert 'layout_mode' in result
+
+@pytest.mark.slow
 def test_simple_assist():
     env = Environment()
     env.run()

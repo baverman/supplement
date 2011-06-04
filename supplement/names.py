@@ -112,14 +112,27 @@ class ClassName(Object):
         self.scope = scope
         self.node = node
 
-    def get_names(self):
+    def get_bases(self):
         try:
-            return self._names
+            return self._bases
         except AttributeError:
             pass
 
-        self._names = self.scope.get_names()
-        return self._names
+        self._bases = [self.scope.parent.eval(r, False) for r in self.node.bases]
+        return self._bases
+
+    def get_names(self):
+        try:
+            self._names
+        except AttributeError:
+            self._names = self.scope.get_names()
+
+        names = set()
+        names.update(self._names)
+        for b in self.get_bases():
+            names.update(b.get_names())
+
+        return names
 
     def op_call(self, args):
         from .objects import FakeInstanceObject

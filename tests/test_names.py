@@ -49,3 +49,20 @@ def test_argument_reassigning(project):
 
     obj = scope['test']
     assert 'iterkeys' in obj
+
+
+def test_attributes_of_inherited_class(project):
+    source = cleantabs('''
+        class Boo(object):
+            def boo(self):
+                pass
+
+        class Foo(Boo):
+            def foo(self):
+                pass
+    ''')
+
+    scope = get_scope_at(project, source, 7)
+
+    obj = scope.get_name('self', 7)
+    assert 'boo' in obj

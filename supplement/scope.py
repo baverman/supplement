@@ -55,7 +55,7 @@ class Scope(object):
         self.name = name
         self.parent = parent
         self._attrs = {}
-        self.type = type
+        self.type = scope_type
 
         if parent:
             self.project = parent.project

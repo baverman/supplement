@@ -112,12 +112,39 @@ class ClassName(Object):
         self.scope = scope
         self.node = node
 
+    def get_names(self):
+        try:
+            return self._names
+        except AttributeError:
+            pass
 
-class ArgumentName(Object):
+        self._names = self.scope.get_names()
+        return self._names
+
+    def op_call(self, args):
+        from .objects import FakeInstanceObject
+        return FakeInstanceObject(self)
+
+
+class ArgumentName(GetObjectDelegate):
     def __init__(self, scope, index, name):
         self.scope = scope
         self.index = index
         self.name = name
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        if self.index == 0 and self.scope.parent.type == 'class':
+            from .objects import FakeInstanceObject
+            self._object = FakeInstanceObject(self.scope.parent.cls)
+        else:
+            self._object = Object()
+
+        return self._object
 
 
 class NameExtractor(ast.NodeVisitor):

@@ -78,4 +78,4 @@ def get_source_and_pos(source):
     if pos < 0:
         pos = len(source)
 
-    return source, pos
+    return source.replace('|', ''), pos

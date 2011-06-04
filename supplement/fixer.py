@@ -46,15 +46,20 @@ def fix(code, tries=4):
             raise
 
         code = code.splitlines()
-        level = get_ws_len(code[e.lineno - 1])
-        result = code[:e.lineno - 1]
-        result.append('')
-        for i, l in enumerate(code[e.lineno:], e.lineno):
-            if l.strip() and get_ws_len(l) <= level:
-                result.extend(code[i:])
-                break
-            else:
-                result.append('')
+
+        if e.text.strip().startswith('except '):
+            code[e.lineno - 1] = code[e.lineno - 1][:e.offset] + ':'
+            result = code
+        else:
+            level = get_ws_len(code[e.lineno - 1])
+            result = code[:e.lineno - 1]
+            result.append('')
+            for i, l in enumerate(code[e.lineno:], e.lineno):
+                if l.strip() and get_ws_len(l) <= level:
+                    result.extend(code[i:])
+                    break
+                else:
+                    result.append('')
 
     code = '\n'.join(result)
     return fix(code, tries - 1)

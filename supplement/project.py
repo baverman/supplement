@@ -41,16 +41,17 @@ class Project(object):
         return self.ast_provider.get(module)
 
     def get_possible_imports(self, start, filename=None):
-        result = []
+        result = set()
         if not start:
             paths = self.paths
+            result.update(r for r, m in sys.modules.items() if m)
         else:
             m = self.get_module(start, filename)
 
             sub_package_prefix = m.module.__name__ + '.'
-            for name, module in sys.modules.iteritems():
+            for name, module in sys.modules.items():
                 if module and name.startswith(sub_package_prefix):
-                    result.append(name[len(sub_package_prefix):])
+                    result.add(name[len(sub_package_prefix):])
 
             try:
                 paths = m.module.__path__
@@ -69,9 +70,9 @@ class Project(object):
                 filename = join(path, name)
                 if isdir(filename):
                     if isfile(join(filename, '__init__.py')):
-                        result.append(name)
+                        result.add(name)
                 else:
                     if any(map(name.endswith, ('.py', '.so'))):
-                        result.append(name.rpartition('.')[0])
+                        result.add(name.rpartition('.')[0])
 
         return result

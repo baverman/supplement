@@ -18,7 +18,7 @@ def create_module(project, name, source):
     module = types.ModuleType(name)
     sys.modules[name] = module
 
-    exec code in module.__dict__
+    exec(code, module.__dict__)
 
     m = TestModule(project, name)
     m.source = source

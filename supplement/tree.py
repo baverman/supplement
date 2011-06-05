@@ -99,7 +99,7 @@ class ReturnExtractor(ast.NodeVisitor):
 
 class TreeDumper(ast.NodeVisitor):
     def default(self, node):
-        print '  ' * self.level, type(node), vars(node)
+        print('  ' * self.level, type(node), vars(node))
         self.level += 1
         self.generic_visit(node)
         self.level -= 1

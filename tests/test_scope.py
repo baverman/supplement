@@ -7,7 +7,7 @@ def check_scope(project, source, names):
         result = get_scope_at(project, source, line).fullname
         assert result == name, "[%s] must be [%s] at line %d" % (result, name, line)
 
-    for line, name in names.iteritems():
+    for line, name in names.items():
         check(line, name)
 
 def test_module_scope(project):

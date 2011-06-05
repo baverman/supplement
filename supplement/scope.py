@@ -109,7 +109,7 @@ class Scope(object):
             return self._names
 
         result = []
-        for name, names in self._names.iteritems():
+        for name, names in self._names.items():
             if any(line <= lineno for line, _ in names):
                 result.append(name)
 
@@ -163,7 +163,7 @@ class Scope(object):
             except KeyError:
                 scope = scope.parent
 
-        return self.project.get_module('__builtin__')[name]
+        return self.project.get_module('builtins')[name]
 
     def get_scope_at(self, source, lineno, continous=True):
         prev = None

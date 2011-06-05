@@ -3,14 +3,14 @@ from os.path import dirname, basename, exists, join
 
 from .objects import create_object
 from .tree import NodeProvider
-from watcher import monitor
+from .watcher import monitor
 
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
 
     def on_file_change(self, filename, module_name):
-        print 'file changed [', filename, module_name, ']'
+        print('file changed [', filename, module_name, ']')
         try:
             del sys.modules[module_name]
         except KeyError:

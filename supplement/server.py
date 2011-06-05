@@ -19,7 +19,7 @@ class Server(object):
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             import traceback
             traceback.print_exc()
             is_ok = False

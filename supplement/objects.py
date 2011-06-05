@@ -1,4 +1,4 @@
-from types import FunctionType, ClassType, ModuleType
+from types import FunctionType, ModuleType
 
 from .tree import CtxNodeProvider
 from .common import Object, GetObjectDelegate
@@ -50,7 +50,7 @@ class FunctionObject(LocationObject):
 
     def op_call(self, args):
         module = self.project.get_module(self.func.__module__)
-        scope = module.get_scope_at(self.func.func_code.co_firstlineno)
+        scope = module.get_scope_at(self.func.__code__.co_firstlineno)
 
         if scope:
             return scope.function.op_call(args)
@@ -230,7 +230,7 @@ def create_object(owner, obj, node=None):
     elif obj_type == ModuleType:
         return Module(owner.project, obj.__name__)
 
-    elif obj_type == ClassType or issubclass(obj_type, type):
+    elif issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
 
     else:

@@ -206,7 +206,7 @@ def test_assist_for_imported_names_attributes(project):
 
 def test_assist_after_curve_brackets(project):
     result = do_assist(project, '''{1:()}.''')
-    assert 'iterkeys' in result
+    assert 'keys' in result
 
 def test_assist_after_square_brackets(project):
     result = do_assist(project, '''[1].''')
@@ -222,7 +222,7 @@ def test_assist_for_dict_item(project):
 
 def test_assist_for_call(project):
     result = do_assist(project, '''dict().''')
-    assert 'iterkeys' in result
+    assert 'keys' in result
 
 def test_assist_for_module_imported_from_package(project):
     project.create_module('package.toimport', '''

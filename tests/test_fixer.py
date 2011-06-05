@@ -11,7 +11,7 @@ def do_assist(project, source, filename=None):
     return assist(project, source, pos, filename)
 
 def test_encoding_sanitization():
-    tree, source = fix(sanitize_encoding(u'# coding: utf-8\n\n\n"вау"'))
+    tree, source = fix(sanitize_encoding('# coding: utf-8\n\n\n"вау"'))
 
 def test_not_closed_except(project):
     result = do_assist(project, '''

@@ -113,7 +113,7 @@ class Evaluator(ast.NodeVisitor):
     def process(self, tree, scope, skip_toplevel=True):
         from .tree import dump_tree;
         dump_tree(tree)
-        print
+        print()
 
         self.scope = scope
         self.ops = []

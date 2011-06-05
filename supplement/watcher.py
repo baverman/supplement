@@ -28,7 +28,7 @@ class FallbackMonitor(object):
     def watch_for_changes(self):
         from os.path import getmtime
         while True:
-            for f, mtime in self.files.iteritems():
+            for f, mtime in self.files.items():
                 new_mtime = getmtime(f)
                 if new_mtime != mtime:
                     self.callback(f)

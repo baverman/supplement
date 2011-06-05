@@ -98,7 +98,7 @@ class FunctionName(Object):
                     result = self.scope.get_call_scope(args).eval(rvalue, False)
                     if result and type(result) is not Object:
                         return result
-                except RecursiveCallException, e:
+                except RecursiveCallException as e:
                     if not e.is_called_by(self):
                         raise
         finally:
@@ -200,8 +200,8 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):
-            self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
-            self.scope.args[i] = n.id
+            self.add_name(n.arg, (ArgumentName, self.scope, i, n.arg), self.scope.node.lineno)
+            self.scope.args[i] = n.arg
 
     def add_name(self, name, value, lineno):
         if name in self.names:
@@ -210,6 +210,10 @@ class NameExtractor(ast.NodeVisitor):
             self.names[name] = [(lineno, value)]
 
     def process(self, node, scope):
+        from .tree import dump_tree;
+        dump_tree(node)
+        print()
+
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
@@ -217,7 +221,7 @@ class NameExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-        for k, v in self.additional_imports.iteritems():
+        for k, v in self.additional_imports.items():
             for line, name in self.names[k]:
                 if name[0] is not ModuleName:
                     continue

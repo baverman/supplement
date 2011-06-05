@@ -11,7 +11,7 @@ def get_scope_names(scope, lineno=None):
         lineno = None
         scope = scope.parent
 
-    m = project.get_module('__builtin__')
+    m = project.get_module('builtins')
     yield m.get_names()
 
 def collect_names(match, names):

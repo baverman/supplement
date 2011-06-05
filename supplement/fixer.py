@@ -10,17 +10,17 @@ def get_ws_len(line):
         return 0
 
 def sanitize_encoding(source):
-    if isinstance(source, unicode):
-        parts = source.split(u'\n', 3)
-        for i in range(2):
-            parts[i] = parts[i].replace(u'coding=', u'codang=').replace(u'coding:', u'codang:')
+    if isinstance(source, str):
+        parts = source.split('\n', 3)
+        for i, l in enumerate(parts):
+            parts[i] = l.replace('coding=', 'codang=').replace('coding:', 'codang:')
 
-        return u'\n'.join(parts)
+        return '\n'.join(parts)
     else:
         return source
 
 def force_byte_string(source):
-    if isinstance(source, unicode):
+    if isinstance(source, str):
         return source.encode('utf8')
     else:
         return source
@@ -28,7 +28,7 @@ def force_byte_string(source):
 def fix(code, tries=4):
     try:
         return ast.parse(code), code
-    except IndentationError, e:
+    except IndentationError as e:
         if not tries:
             raise
 
@@ -41,7 +41,7 @@ def fix(code, tries=4):
                 result.extend(code[i+1:])
                 break
 
-    except SyntaxError, e:
+    except SyntaxError as e:
         if not tries:
             raise
 

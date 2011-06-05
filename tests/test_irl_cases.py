@@ -12,7 +12,6 @@ def test_assist_for_watcher_raises_KeyError(project):
         from supplement import watcher
         watcher.''')
 
-    assert 'run_loop' in result
     assert 'monitor' in result
 
 def test_eval_of_os_path_abspath(project):

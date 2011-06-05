@@ -1,5 +1,6 @@
 import pytest
 import time
+import os.path
 
 from supplement import watcher
 
@@ -27,9 +28,10 @@ def test_watcher_must_call_uniq_handlers_on_file_change(tmpdir):
     watcher.monitor(str(f), on_change, changed2)
     watcher.monitor(str(f), change_on, changed2)
 
+    time.sleep(1)
     f.write('ddddddd')
+    time.sleep(5.5)
 
-    time.sleep(2)
     assert changed1.data == [str(f)]
     assert changed2.data == [str(f), str(f)]
 
@@ -52,8 +54,9 @@ def test_watcher_must_call_uniq_method_handlers_on_file_change(tmpdir):
     watcher.monitor(str(f), h1.on_change)
     watcher.monitor(str(f), h2.on_change)
 
+    time.sleep(1)
     f.write('ddddddd')
+    time.sleep(5.5)
 
-    time.sleep(2)
     assert h1.changed == [str(f)]
     assert h2.changed == [str(f)]

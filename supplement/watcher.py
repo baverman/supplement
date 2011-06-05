@@ -1,40 +1,54 @@
-import gio
-import glib
 import time
 import threading
 
-monitors = {}
 handlers = {}
-loop_thread = None
+main_monitor = [None]
 
-def file_changed(monitor, file1, file2, evt_type):
-    if evt_type == gio.FILE_MONITOR_EVENT_CHANGES_DONE_HINT:
-        fname = file1.get_path()
-        for v in handlers[fname]:
-            v[0](fname, *v[1:])
+def file_changed(filename):
+    print 'changed', filename
+    for v in handlers[filename]:
+        v[0](filename, *v[1:])
+
+
+class FallbackMonitor(object):
+    def __init__(self, callback):
+        self.files = {}
+        self.timeout = 5
+        self.callback = callback
+
+    def start(self):
+        t = threading.Thread(target=self.watch_for_changes)
+        t.daemon = True
+        t.start()
+
+    def monitor(self, filename):
+        from os.path import getmtime
+        if filename not in self.files:
+            self.files[filename] = getmtime(filename)
+
+    def watch_for_changes(self):
+        from os.path import getmtime
+        while True:
+            for f, mtime in self.files.iteritems():
+                new_mtime = getmtime(f)
+                print f, mtime, new_mtime
+                if new_mtime != mtime:
+                    self.callback(f)
+
+                self.files[f] = new_mtime
+
+            time.sleep(self.timeout)
+
+
+Monitor = FallbackMonitor
 
 def monitor(filename, handler, *args):
-    if not loop_thread:
-        run_loop()
+    m = main_monitor[0]
+    if not m:
+        m = main_monitor[0] = Monitor(file_changed)
+        m.start()
 
-    if filename not in monitors:
-        gfile = gio.File(filename)
-        monitor = gfile.monitor_file()
-        monitor.connect('changed', file_changed)
-        monitors[filename] = monitor
+    if filename not in handlers:
+        m.monitor(filename)
 
     handlers.setdefault(filename, set()).add((handler,) + args)
-
-def process_events():
-    ctx = glib.main_context_default()
-    while True:
-        while ctx.pending():
-            ctx.iteration(False)
-
-        time.sleep(0.3)
-
-def run_loop():
-    global loop_thread
-    loop_thread = threading.Thread(target=process_events)
-    loop_thread.daemon = True
-    loop_thread.start()

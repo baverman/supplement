@@ -14,7 +14,7 @@ def test_project_token():
 
     assert p1 != p2
 
-@pytest.mark.slow
+@pytest.mark.xfail
 def test_project_config():
     env = Environment()
     env.run()

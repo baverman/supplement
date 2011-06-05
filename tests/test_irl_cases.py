@@ -1,3 +1,5 @@
+import pytest
+
 from supplement.assistant import assist
 
 from .helpers import pytest_funcarg__project, get_source_and_pos
@@ -21,6 +23,7 @@ def test_eval_of_os_path_abspath(project):
 
     assert 'lower' in result
 
+@pytest.mark.xfail
 def test_assist_for_gtk_object_attributes(project):
     result = do_assist(project, '''
         import gtk
@@ -28,6 +31,7 @@ def test_assist_for_gtk_object_attributes(project):
 
     assert 'activate' in result
 
+@pytest.mark.xfail
 def test_assist_for_gtk_class_properties(project):
     result = do_assist(project, '''
         import gtk

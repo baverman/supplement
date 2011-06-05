@@ -5,7 +5,6 @@ handlers = {}
 main_monitor = [None]
 
 def file_changed(filename):
-    print 'changed', filename
     for v in handlers[filename]:
         v[0](filename, *v[1:])
 
@@ -31,7 +30,6 @@ class FallbackMonitor(object):
         while True:
             for f, mtime in self.files.iteritems():
                 new_mtime = getmtime(f)
-                print f, mtime, new_mtime
                 if new_mtime != mtime:
                     self.callback(f)
 

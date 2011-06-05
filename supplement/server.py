@@ -42,12 +42,16 @@ class Server(object):
                     traceback.print_exc()
                     break
 
-                result, is_ok = self.process(*args)
-                try:
-                    self.conn.send((result, is_ok))
-                except:
-                    import traceback
-                    traceback.print_exc()
+                if args[0] == 'close':
+                    conn.close()
+                    break
+                else:
+                    result, is_ok = self.process(*args)
+                    try:
+                        self.conn.send((result, is_ok))
+                    except:
+                        import traceback
+                        traceback.print_exc()
 
 if __name__ == '__main__':
     from multiprocessing.connection import Listener
@@ -55,4 +59,3 @@ if __name__ == '__main__':
     conn = listener.accept()
     server = Server(conn)
     server.run()
-    conn.close()

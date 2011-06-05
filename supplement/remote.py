@@ -32,6 +32,11 @@ class Environment(object):
         self.conn = Client(addr)
 
     def _call(self, name, *args, **kwargs):
+        try:
+            self.conn
+        except AttributeError:
+            self.run()
+
         self.conn.send((name, args, kwargs))
         result, is_ok = self.conn.recv()
 
@@ -45,3 +50,12 @@ class Environment(object):
 
     def assist(self, token, source, position, filename):
         return self._call('assist', token, source, position, filename)
+
+    def close(self):
+        try:
+            self.conn
+            self._call('close')
+            self.conn.close()
+            del self.conn
+        except AttributeError:
+            pass

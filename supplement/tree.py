@@ -87,7 +87,6 @@ class NameExtractor(ast.NodeVisitor):
 
 class ReturnExtractor(ast.NodeVisitor):
     def process(self, node):
-        dump_tree(node)
         self.result = []
         self.generic_visit(node)
 

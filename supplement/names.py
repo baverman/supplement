@@ -134,10 +134,47 @@ class ClassName(Object):
 
         return names
 
+    def __getitem__(self, name):
+        if name in self.get_names():
+            if name in self._names:
+                return self.scope.get_name(name, self._names[name][-1][0])
+
+            for cls in self.get_bases():
+                try:
+                    return cls[name]
+                except KeyError:
+                    pass
+
+        raise KeyError(name)
+
     def op_call(self, args):
         from .objects import FakeInstanceObject
         return FakeInstanceObject(self)
 
+    def get_assigned_attributes(self):
+        try:
+            self._assigned_attributes
+        except AttributeError:
+            self._assigned_attributes = {}
+            for name, loc in self.scope.get_names().iteritems():
+                for line, args in loc:
+                    if args[0] == FunctionName:
+                        func = self.scope.get_name(name, line)
+                        func.scope.get_names()
+                        if not func.scope.args:
+                            continue
+
+                        slf = func.scope.get_name(func.scope.args[0])
+                        self._assigned_attributes.update(slf.find_attr_assignments())
+
+
+        result = self._assigned_attributes.copy()
+        for cls in self.get_bases():
+            for attr, value in cls.get_assigned_attributes().iteritems():
+                if attr not in result:
+                    result[attr] = value
+
+        return result
 
 class ArgumentName(GetObjectDelegate):
     def __init__(self, scope, index, name):
@@ -158,6 +195,24 @@ class ArgumentName(GetObjectDelegate):
             self._object = Object()
 
         return self._object
+
+    def find_attr_assignments(self):
+        return AttributesAssignsExtractor().process(self.name, self.scope, self.scope.node)
+
+
+class AttributesAssignsExtractor(ast.NodeVisitor):
+    def visit_Assign(self, node):
+        for t in node.targets:
+            if type(t) == ast.Attribute and t.value.id == self.name:
+                self.result[t.attr] = Value(self.scope, node.value)
+
+    def process(self, name, scope, node):
+        self.scope = scope
+        self.name = name
+        self.result = {}
+
+        self.generic_visit(node)
+        return self.result
 
 
 class NameExtractor(ast.NodeVisitor):

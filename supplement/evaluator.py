@@ -111,9 +111,9 @@ class Evaluator(ast.NodeVisitor):
         self.push(obj.op_getitem(idx.get_value()))
 
     def process(self, tree, scope, skip_toplevel=True):
-        from .tree import dump_tree;
-        dump_tree(tree)
-        print
+        #from .tree import dump_tree;
+        #dump_tree(tree)
+        #print
 
         self.scope = scope
         self.ops = []

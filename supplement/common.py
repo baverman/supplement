@@ -20,6 +20,9 @@ class Object(object):
     def is_descriptor(self):
         return False
 
+    def get_assigned_attributes(self):
+        return {}
+
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -42,6 +45,9 @@ class GetObjectDelegate(object):
 
     def is_descriptor(self):
         return self.get_object().is_descriptor()
+
+    def get_assigned_attributes(self):
+        return self.get_object().get_assigned_attributes()
 
 
 class UnknownObject(Object): pass

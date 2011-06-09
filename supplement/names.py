@@ -156,7 +156,7 @@ class ClassName(Object):
             self._assigned_attributes
         except AttributeError:
             self._assigned_attributes = {}
-            for name, loc in self.scope.get_names().iteritems():
+            for name, loc in self.scope.get_names().items():
                 for line, args in loc:
                     if args[0] == FunctionName:
                         func = self.scope.get_name(name, line)
@@ -170,7 +170,7 @@ class ClassName(Object):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().iteritems():
+            for attr, value in cls.get_assigned_attributes().items():
                 if attr not in result:
                     result[attr] = value
 

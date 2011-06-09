@@ -66,3 +66,36 @@ def test_attributes_of_inherited_class(project):
 
     obj = scope.get_name('self', 7)
     assert 'boo' in obj
+
+def test_class_object_must_provide_attributes_assigned_in_its_methods(project):
+    source = cleantabs('''
+        class Boo(object):
+            def boo(self):
+                self.boo_attr = []
+
+        boo = Boo()
+    ''')
+
+    scope = get_scope_at(project, source, 5)
+
+    obj = scope.get_name('boo', 5)
+    assert 'boo_attr' in obj
+    assert 'append' in obj['boo_attr']
+
+def test_class_object_must_provide_attributes_assigned_in_parent_methods(project):
+    source = cleantabs('''
+        class Boo(object):
+            def boo(self):
+                self.boo_attr = []
+
+        class Foo(Boo):
+            pass
+
+        foo = Foo()
+    ''')
+
+    scope = get_scope_at(project, source, 8)
+
+    obj = scope.get_name('foo', 8)
+    assert 'boo_attr' in obj
+    assert 'append' in obj['boo_attr']

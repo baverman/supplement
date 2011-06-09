@@ -127,16 +127,24 @@ class ClassObject(LocationObject):
             return wrap_in_descriptor(self,
                 self.project.get_module(cls.__module__)[cls.__name__][name])
 
+    def get_assigned_attributes(self):
+        return {}
+
 
 class FakeInstanceObject(Object):
     def __init__(self, class_obj):
         self._class = class_obj
 
     def get_names(self):
-        return self._class.get_names()
+        return set(self._class.get_names()).union(set(self._class.get_assigned_attributes()))
 
     def __getitem__(self, name):
-        return wrap_in_method(self, self._class[name])
+        if name in self._class.get_names():
+            return wrap_in_method(self, self._class[name])
+
+        attrs = self._class.get_assigned_attributes()
+        if name in attrs:
+            return wrap_in_method(self, attrs[name].get_object())
 
 
 class InstanceObject(LocationObject):

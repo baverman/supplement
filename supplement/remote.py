@@ -12,9 +12,8 @@ class Environment(object):
         from multiprocessing.connection import Client, arbitrary_address
 
         addr = arbitrary_address('AF_UNIX')
-        filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server.py')
 
-        args = [self.executable, filename, addr]
+        args = [self.executable, '-m', 'supplement.server', addr]
 
         env = None
         if self.env:

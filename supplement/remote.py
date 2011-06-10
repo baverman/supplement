@@ -56,7 +56,7 @@ class Environment(object):
     def close(self):
         try:
             self.conn
-            self._call('close')
+            self.conn.send_bytes(dumps(('close', (), {}), 2))
             self.conn.close()
             del self.conn
         except AttributeError:

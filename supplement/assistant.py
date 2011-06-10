@@ -162,3 +162,25 @@ def assist(project, source, position, filename):
         return []
 
     return collect_names(match, names)
+
+def get_location(project, source, position, filename):
+    source_len = len(source)
+    while position < source_len and char_is_id(source[position]):
+        position += 1
+
+    ctx_type, lineno, ctx, match = get_context(source, position)
+
+    if ctx_type == 'eval':
+        source = sanitize_encoding(source)
+        ast_nodes, fixed_source = fix(source)
+
+        scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
+        if not ctx:
+            obj = scope.get_name(match, lineno)
+        else:
+            obj = infer(ctx, scope, lineno)[match]
+        print obj
+    else:
+        return None, None
+
+    return obj.get_location()

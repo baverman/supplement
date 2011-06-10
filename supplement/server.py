@@ -1,7 +1,7 @@
 import sys
 
 from supplement.project import Project
-from supplement.assistant import assist
+from supplement.assistant import assist, get_location
 from cPickle import loads, dumps
 
 class Server(object):
@@ -40,6 +40,9 @@ class Server(object):
 
     def assist(self, path, source, position, filename):
         return assist(self.get_project(path), source, position, filename)
+
+    def get_location(self, path, source, position, filename):
+        return get_location(self.get_project(path), source, position, filename)
 
     def run(self):
         conn = self.conn

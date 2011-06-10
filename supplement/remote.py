@@ -47,6 +47,9 @@ class Environment(object):
     def assist(self, project_path, source, position, filename):
         return self._call('assist', project_path, source, position, filename)
 
+    def get_location(self, project_path, source, position, filename):
+        return self._call('get_location', project_path, source, position, filename)
+
     def configure_project(self, project_path, config):
         return self._call('configure_project', project_path, config)
 

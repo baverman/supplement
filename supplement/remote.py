@@ -3,7 +3,6 @@ import os.path
 import time
 
 class Environment(object):
-
     def __init__(self, executable=None, env=None):
         self.executable = executable or sys.executable
         self.env = env
@@ -45,11 +44,11 @@ class Environment(object):
         else:
             raise Exception(result)
 
-    def get_project_token(self, path, config={}):
-        return self._call('get_project_token', path=path, config=config)
+    def assist(self, project_path, source, position, filename):
+        return self._call('assist', project_path, source, position, filename)
 
-    def assist(self, token, source, position, filename):
-        return self._call('assist', token, source, position, filename)
+    def configure_project(self, project_path, config):
+        return self._call('configure_project', project_path, config)
 
     def close(self):
         try:

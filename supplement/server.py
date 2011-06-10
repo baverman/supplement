@@ -1,5 +1,4 @@
 import sys
-import uuid
 
 from supplement.project import Project
 from supplement.assistant import assist
@@ -8,12 +7,23 @@ class Server(object):
     def __init__(self, conn):
         self.conn = conn
         self.projects = {}
+        self.configs = {}
 
-    def get_project_token(self, path, config):
-        token = uuid.uuid1()
-        p = Project(path, config)
-        self.projects[token] = p
-        return token
+    def configure_project(self, path, config):
+        self.configs[path] = config
+        self.projects[path] = self.create_project(path)
+
+    def create_project(self, path):
+        return Project(path, self.configs.get(path, {}))
+
+    def get_project(self, path):
+        try:
+            return self.projects[path]
+        except KeyError:
+            pass
+
+        p = self.projects[path] = self.create_project(path)
+        return p
 
     def process(self, name, args, kwargs):
         try:
@@ -27,8 +37,8 @@ class Server(object):
 
         return result, is_ok
 
-    def assist(self, token, source, position, filename):
-        return assist(self.projects[token], source, position, filename)
+    def assist(self, path, source, position, filename):
+        return assist(self.get_project(path), source, position, filename)
 
     def run(self):
         while True:

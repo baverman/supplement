@@ -2,6 +2,7 @@ import sys
 
 from supplement.project import Project
 from supplement.assistant import assist
+from cPickle import loads, dumps
 
 class Server(object):
     def __init__(self, conn):
@@ -41,10 +42,11 @@ class Server(object):
         return assist(self.get_project(path), source, position, filename)
 
     def run(self):
+        conn = self.conn
         while True:
             if conn.poll(1):
                 try:
-                    args = conn.recv()
+                    args = loads(conn.recv_bytes())
                 except EOFError:
                     break
                 except Exception:
@@ -58,7 +60,7 @@ class Server(object):
                 else:
                     result, is_ok = self.process(*args)
                     try:
-                        self.conn.send((result, is_ok))
+                        self.conn.send_bytes(dumps((result, is_ok), 2))
                     except:
                         import traceback
                         traceback.print_exc()

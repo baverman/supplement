@@ -53,6 +53,9 @@ class Environment(object):
     def configure_project(self, project_path, config):
         return self._call('configure_project', project_path, config)
 
+    def get_scope(self, project_path, source, lineno, filename, continous=True):
+        return self._call('get_scope', project_path, source, lineno, filename, continous=continous)
+
     def close(self):
         try:
             self.conn

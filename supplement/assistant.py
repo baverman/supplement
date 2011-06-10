@@ -1,4 +1,5 @@
 import re
+import logging
 
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
@@ -138,6 +139,7 @@ def get_context(source, position):
     return ctx_type, lineno, ctx, match
 
 def assist(project, source, position, filename):
+    logging.getLogger(__name__).info('assist %s %s', project.root, filename)
     ctx_type, lineno, ctx, match = get_context(source, position)
 
     if ctx_type == 'eval':

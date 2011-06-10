@@ -292,3 +292,22 @@ def test_get_location_must_return_name_location_for_imported_names(project):
     line, fname = get_location(project, source, pos, 'test.py')
     assert fname == 'toimport.py'
     assert line == 1
+
+def test_import_package_modules_from_init(project, tmpdir):
+    project.set_root(str(tmpdir))
+    pkgdir = tmpdir.join('package')
+    pkgdir.mkdir()
+
+    source, pos = get_source_and_pos('''
+        import module
+        module.n|
+    ''')
+
+    pkg = pkgdir.join('__init__.py')
+    pkg.write(source)
+
+    m = pkgdir.join('module.py')
+    m.write('name = []')
+
+    result = assist(project, source, pos, str(pkg))
+    assert result == ['name']

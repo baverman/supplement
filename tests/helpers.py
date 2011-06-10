@@ -46,7 +46,7 @@ def set_project_root(project, root):
     project.paths = [os.path.abspath(root)] + sys.path
 
 def pytest_funcarg__project(request):
-    for crap_module in ('toimport',):
+    for crap_module in ('toimport', 'package'):
         if crap_module in sys.modules:
             del sys.modules[crap_module]
 

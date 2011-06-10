@@ -1,8 +1,10 @@
 import sys
+from cPickle import loads, dumps
 
 from supplement.project import Project
 from supplement.assistant import assist, get_location
-from cPickle import loads, dumps
+from supplement.scope import get_scope_at
+
 
 class Server(object):
     def __init__(self, conn):
@@ -44,6 +46,10 @@ class Server(object):
     def get_location(self, path, source, position, filename):
         return get_location(self.get_project(path), source, position, filename)
 
+    def get_scope(self, path, source, lineno, filename, continous):
+        return get_scope_at(
+            self.get_project(path), source, lineno, filename, continous=continous).fullname
+
     def run(self):
         conn = self.conn
         while True:
@@ -69,7 +75,17 @@ class Server(object):
                         traceback.print_exc()
 
 if __name__ == '__main__':
+    import os
     from multiprocessing.connection import Listener
+
+    if 'SUPP_LOG_LEVEL' in os.environ:
+        import logging
+        logger = logging.getLogger('supplement')
+        logger.setLevel(int(os.environ['SUPP_LOG_LEVEL']))
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
+        logger.addHandler(handler)
+
     listener = Listener(sys.argv[1])
     conn = listener.accept()
     server = Server(conn)

@@ -1,5 +1,8 @@
 import sys
-from cPickle import loads, dumps
+try:
+    from cPickle import loads, dumps
+except ImportError:
+    from pickle import loads, dumps
 
 from supplement.project import Project
 from supplement.assistant import assist, get_location

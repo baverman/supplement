@@ -1,7 +1,11 @@
 import sys
 import os.path
 import time
-from cPickle import loads, dumps
+
+try:
+    from cPickle import loads, dumps
+except ImportError:
+    from pickle import loads, dumps
 
 class Environment(object):
     def __init__(self, executable=None, env=None):

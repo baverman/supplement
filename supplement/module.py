@@ -97,7 +97,6 @@ class Module(object):
         except KeyError:
             oldpath = sys.path
             sys.path = self.project.paths
-
             try:
                 __import__(self.name)
             finally:

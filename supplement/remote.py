@@ -1,9 +1,9 @@
 import sys
 import os.path
 import time
+from cPickle import loads, dumps
 
 class Environment(object):
-
     def __init__(self, executable=None, env=None):
         self.executable = executable or sys.executable
         self.env = env
@@ -13,9 +13,8 @@ class Environment(object):
         from multiprocessing.connection import Client, arbitrary_address
 
         addr = arbitrary_address('AF_UNIX')
-        filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server.py')
 
-        args = [self.executable, filename, addr]
+        args = [self.executable, '-m', 'supplement.server', addr]
 
         env = None
         if self.env:
@@ -37,24 +36,30 @@ class Environment(object):
         except AttributeError:
             self.run()
 
-        self.conn.send((name, args, kwargs))
-        result, is_ok = self.conn.recv()
+        self.conn.send_bytes(dumps((name, args, kwargs), 2))
+        result, is_ok = loads(self.conn.recv_bytes())
 
         if is_ok:
             return result
         else:
             raise Exception(result)
 
-    def get_project_token(self, path, config={}):
-        return self._call('get_project_token', path=path, config=config)
+    def assist(self, project_path, source, position, filename):
+        return self._call('assist', project_path, source, position, filename)
 
-    def assist(self, token, source, position, filename):
-        return self._call('assist', token, source, position, filename)
+    def get_location(self, project_path, source, position, filename):
+        return self._call('get_location', project_path, source, position, filename)
+
+    def configure_project(self, project_path, config):
+        return self._call('configure_project', project_path, config)
+
+    def get_scope(self, project_path, source, lineno, filename, continous=True):
+        return self._call('get_scope', project_path, source, lineno, filename, continous=continous)
 
     def close(self):
         try:
             self.conn
-            self._call('close')
+            self.conn.send_bytes(dumps(('close', (), {}), 2))
             self.conn.close()
             del self.conn
         except AttributeError:

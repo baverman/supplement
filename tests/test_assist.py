@@ -1,7 +1,7 @@
 import time
 import pytest
 
-from supplement.assistant import assist
+from supplement.assistant import assist, get_location
 
 from .helpers import pytest_funcarg__project, get_source_and_pos
 
@@ -264,3 +264,50 @@ def test_assist_must_not_show_names_below_current_cursor(project):
     ''')
 
     assert result == ['name1']
+
+def test_get_location_must_return_name_location(project):
+    source, pos = get_source_and_pos('''
+        def aaa():
+            pass
+
+        aa|a()
+    ''')
+
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'test.py'
+    assert line == 1
+
+def test_get_location_must_return_name_location_for_imported_names(project):
+    project.create_module('toimport', '''
+        def aaa():
+            pass
+    ''')
+
+    source, pos = get_source_and_pos('''
+        import toimport
+
+        toimport.aa|a()
+    ''')
+
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'toimport.py'
+    assert line == 1
+
+def test_import_package_modules_from_init(project, tmpdir):
+    project.set_root(str(tmpdir))
+    pkgdir = tmpdir.join('package')
+    pkgdir.mkdir()
+
+    source, pos = get_source_and_pos('''
+        import module
+        module.n|
+    ''')
+
+    pkg = pkgdir.join('__init__.py')
+    pkg.write(source)
+
+    m = pkgdir.join('module.py')
+    m.write('name = []')
+
+    result = assist(project, source, pos, str(pkg))
+    assert result == ['name']

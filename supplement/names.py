@@ -86,6 +86,9 @@ class FunctionName(Object):
         self.node = node
         self._calling = False
 
+    def get_location(self):
+        return self.node.lineno, self.filename
+
     def op_call(self, args=[]):
 
         if self._calling:

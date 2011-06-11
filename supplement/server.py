@@ -1,19 +1,32 @@
 import sys
-import uuid
+from cPickle import loads, dumps
 
 from supplement.project import Project
-from supplement.assistant import assist
+from supplement.assistant import assist, get_location
+from supplement.scope import get_scope_at
+
 
 class Server(object):
     def __init__(self, conn):
         self.conn = conn
         self.projects = {}
+        self.configs = {}
 
-    def get_project_token(self, path, config):
-        token = uuid.uuid1()
-        p = Project(path, config)
-        self.projects[token] = p
-        return token
+    def configure_project(self, path, config):
+        self.configs[path] = config
+        self.projects[path] = self.create_project(path)
+
+    def create_project(self, path):
+        return Project(path, self.configs.get(path, {}))
+
+    def get_project(self, path):
+        try:
+            return self.projects[path]
+        except KeyError:
+            pass
+
+        p = self.projects[path] = self.create_project(path)
+        return p
 
     def process(self, name, args, kwargs):
         try:
@@ -27,14 +40,22 @@ class Server(object):
 
         return result, is_ok
 
-    def assist(self, token, source, position, filename):
-        return assist(self.projects[token], source, position, filename)
+    def assist(self, path, source, position, filename):
+        return assist(self.get_project(path), source, position, filename)
+
+    def get_location(self, path, source, position, filename):
+        return get_location(self.get_project(path), source, position, filename)
+
+    def get_scope(self, path, source, lineno, filename, continous):
+        return get_scope_at(
+            self.get_project(path), source, lineno, filename, continous=continous).fullname
 
     def run(self):
+        conn = self.conn
         while True:
             if conn.poll(1):
                 try:
-                    args = conn.recv()
+                    args = loads(conn.recv_bytes())
                 except EOFError:
                     break
                 except Exception:
@@ -48,13 +69,23 @@ class Server(object):
                 else:
                     result, is_ok = self.process(*args)
                     try:
-                        self.conn.send((result, is_ok))
+                        self.conn.send_bytes(dumps((result, is_ok), 2))
                     except:
                         import traceback
                         traceback.print_exc()
 
 if __name__ == '__main__':
+    import os
     from multiprocessing.connection import Listener
+
+    if 'SUPP_LOG_LEVEL' in os.environ:
+        import logging
+        logger = logging.getLogger('supplement')
+        logger.setLevel(int(os.environ['SUPP_LOG_LEVEL']))
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
+        logger.addHandler(handler)
+
     listener = Listener(sys.argv[1])
     conn = listener.accept()
     server = Server(conn)

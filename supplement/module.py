@@ -10,7 +10,6 @@ class ModuleProvider(object):
         self.cache = {}
 
     def on_file_change(self, filename, module_name):
-        print 'file changed [', filename, module_name, ']'
         try:
             del sys.modules[module_name]
         except KeyError:
@@ -122,7 +121,7 @@ class Module(object):
         except AttributeError:
             pass
 
-        self.attrs.clear()
+        self._attrs.clear()
 
     @property
     def filename(self):

@@ -1,7 +1,7 @@
 import ast
 
 from .objects import create_object
-from .common import Value
+from .common import Value, UnknownObject
 
 def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
@@ -18,7 +18,7 @@ class Indexable(object):
         self.object = obj
 
     def op_getitem(self, idx):
-        return self.values[idx].get_object()
+        return self.values[idx.get_value()].get_object()
 
     def get_names(self):
         return self.object.get_names()
@@ -36,16 +36,32 @@ class Dict(object):
         self.node = node
         self.object = create_object(scope, {})
 
-    def op_getitem(self, idx):
+    def get_data(self):
         try:
-            data = self.data
+            return self.data
         except AttributeError:
             data = self.data = {}
             scope = self.scope
             for k, v in zip(self.node.keys, self.node.values):
                 data[Value(scope, k).get_object().get_value()] = Value(scope, v).get_object()
 
-        return self.data[idx]
+            return data
+
+    def op_getitem(self, idx):
+        data = self.get_data()
+        try:
+            idx = idx.get_value()
+        except AttributeError:
+            if data:
+                idx = data.keys()[0]
+            else:
+                return UnknownObject()
+
+        return data[idx]
+
+    def op_setitem(self, idx, value):
+        data = self.get_data()
+        data[idx.get_value()] = value
 
     def get_names(self):
         return self.object.get_names()
@@ -108,12 +124,10 @@ class Evaluator(ast.NodeVisitor):
         self.visit(node.value)
         obj = self.pop()
 
-        self.push(obj.op_getitem(idx.get_value()))
+        self.push(obj.op_getitem(idx))
 
     def process(self, tree, scope, skip_toplevel=True):
-        #from .tree import dump_tree;
-        #dump_tree(tree)
-        #print
+        #from .tree import dump_tree; dump_tree(tree); print
 
         self.scope = scope
         self.ops = []

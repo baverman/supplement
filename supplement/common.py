@@ -1,3 +1,5 @@
+import logging
+
 class Object(object):
     def get_location(self):
         return None, None
@@ -16,6 +18,9 @@ class Object(object):
 
     def op_getitem(self, idx):
         return UnknownObject()
+
+    def op_setitem(self, idx, value):
+        logging.getLogger(__name__).info('Try to set item on unknown object %s', self)
 
     def is_descriptor(self):
         return False
@@ -39,6 +44,9 @@ class GetObjectDelegate(object):
 
     def op_getitem(self, idx):
         return self.get_object().op_getitem(idx)
+
+    def op_setitem(self, idx, value):
+        return self.get_object().op_setitem(idx, value)
 
     def get_location(self):
         return self.get_object().get_location()

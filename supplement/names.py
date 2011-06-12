@@ -3,6 +3,15 @@ import ast
 from .tree import ReturnExtractor
 from .common import Object, UnknownObject, GetObjectDelegate, Value
 
+
+class Valuable(object):
+    def __init__(self, value):
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
+
 class ModuleName(Object):
     def __init__(self, name, additional=None):
         self.name = name
@@ -69,7 +78,7 @@ class AssignedName(GetObjectDelegate):
         if self.idx is None:
             return obj
         else:
-            return obj.op_getitem(self.idx)
+            return obj.op_getitem(Valuable(self.idx))
 
 
 class RecursiveCallException(Exception):
@@ -255,6 +264,8 @@ class NameExtractor(ast.NodeVisitor):
         for i, n in targets:
             if isinstance(n,  ast.Name):
                 self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value)), n.lineno)
+            if isinstance(n,  ast.Subscript):
+                self.subscript_assignments.append((n.value, n.slice, node.value))
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):
@@ -268,10 +279,13 @@ class NameExtractor(ast.NodeVisitor):
             self.names[name] = [(lineno, value)]
 
     def process(self, node, scope):
+        #from .tree import dump_tree; dump_tree(node); print
+
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
         self.names = {}
+        self.subscript_assignments = []
 
         self.generic_visit(node)
 
@@ -282,7 +296,7 @@ class NameExtractor(ast.NodeVisitor):
 
                 name[2].update(v)
 
-        return self.names, self.starred_imports
+        return self.names, self.starred_imports, self.subscript_assignments
 
 
 def create_name(node, owner):

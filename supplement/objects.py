@@ -196,7 +196,7 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        return create_object(self, self.obj[idx])
+        return create_object(self, self.obj[idx.get_value()])
 
     def get_value(self):
         return self.obj

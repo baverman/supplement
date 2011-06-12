@@ -99,11 +99,14 @@ class Scope(object):
         try:
             self._names
         except AttributeError:
-            self._names, starred_imports = NameExtractor().process(self.node, self)
+            self._names, starred_imports, sassigns = NameExtractor().process(self.node, self)
             for m, line in starred_imports:
                 for name in self.project.get_module(m, self.filename).get_names():
                     self._names.setdefault(name, []).append((line, (ImportedName, m, name)))
                     self._names[name].sort(reverse=True)
+
+            for target, idx, value in sassigns:
+                self.eval(target, False).op_setitem(self.eval(idx, False), self.eval(value, False))
 
         if lineno is None:
             return self._names

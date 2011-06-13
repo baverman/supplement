@@ -1,5 +1,7 @@
 import sys
 from os.path import dirname, basename, exists, join
+import imp
+import logging
 
 from .objects import create_object
 from .tree import NodeProvider
@@ -36,6 +38,77 @@ class ModuleProvider(object):
 
         return m
 
+
+class ModuleLoader(object):
+    def __init__(self, project, provider):
+        self.project = project
+        self.provider = provider
+        self.oldmodules = {}
+        self.cached_paths = {}
+
+    def imp(self, fullname):
+        __import__(fullname)
+        return sys.modules[fullname]
+
+    def find_module(self, fullname, path=None):
+        logging.getLogger(__name__).info('IP try to import %s %s', fullname, path)
+
+        try:
+            sys.modules[fullname].__file__
+        except AttributeError:
+            self.cached_paths[fullname] = 'sys', None
+            return self
+        except:
+            pass
+
+        package_name, sep, module_name = fullname.rpartition('.')
+
+        if package_name:
+            pkg = self.imp(package_name)
+            if getattr(pkg, '__path__', None):
+                paths = pkg.__path__
+            else:
+                self.cached_paths[fullname] = 'evaluated', getattr(pkg, module_name)
+                return self
+        else:
+            paths = self.project.paths
+
+        try:
+            fr = imp.find_module(module_name, paths)
+            self.cached_paths[fullname] = 'load', fr
+            return self
+        except ImportError:
+            return None
+
+    def load_module(self, fullname):
+        what, data = self.cached_paths[fullname]
+        if what == 'evaluated':
+            if fullname in sys.modules:
+                if sys.modules[fullname] is not data:
+                    self.oldmodules[fullname] = sys.modules[fullname]
+                    sys.modules[fullname] = data
+            else:
+                sys.modules[fullname] = data
+
+        elif what == 'load':
+            try:
+                self.oldmodules[fullname] = sys.modules[fullname]
+            except KeyError:
+                pass
+
+            try:
+                imp.load_module(fullname, *data)
+            finally:
+                try:
+                    sys.modules[fullname] = self.oldmodules[fullname]
+                    del self.oldmodules[fullname]
+                except KeyError:
+                    pass
+
+                if data[0]:
+                    data[0].close()
+
+        return sys.modules[fullname]
 
 class PackageResolver(object):
     def __init__(self):
@@ -91,17 +164,12 @@ class Module(object):
         except AttributeError:
             pass
 
+        loader = ModuleLoader(self.project, self.project.module_provider)
+        sys.meta_path.insert(0, loader)
         try:
-            self._module = sys.modules[self.name]
-        except KeyError:
-            oldpath = sys.path
-            sys.path = self.project.paths
-            try:
-                __import__(self.name)
-            finally:
-                sys.path = oldpath
-
-            self._module = sys.modules[self.name]
+            self._module = loader.imp(self.name)
+        finally:
+            sys.meta_path.pop(0)
 
         return self._module
 

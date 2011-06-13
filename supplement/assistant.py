@@ -181,7 +181,6 @@ def get_location(project, source, position, filename):
             obj = scope.get_name(match, lineno)
         else:
             obj = infer(ctx, scope, lineno)[match]
-        print obj
     else:
         return None, None
 

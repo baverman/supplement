@@ -300,7 +300,9 @@ def test_import_package_modules_from_init(project, tmpdir):
 
     source, pos = get_source_and_pos('''
         import module
-        module.n|
+
+        def foo():
+            module.n|
     ''')
 
     pkg = pkgdir.join('__init__.py')

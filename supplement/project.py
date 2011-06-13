@@ -1,6 +1,5 @@
 import sys, os
 from os.path import abspath, join, isdir, isfile, exists, normpath, dirname
-import logging
 
 from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
@@ -9,13 +8,17 @@ class Project(object):
     def __init__(self, root, config=None):
         self.root = root
         self.config = config or {}
+        self.sources = []
 
         self.paths = []
         if 'sources' in self.config:
             for p in self.config['sources']:
-                self.paths.append(join(abspath(root), p))
+                p = join(abspath(root), p)
+                self.paths.append(p)
+                self.sources.append(p)
         else:
             self.paths.append(abspath(root))
+            self.sources.append(abspath(root))
 
         for p in self.config.get('libs', []):
             self.paths.append(p)
@@ -42,7 +45,6 @@ class Project(object):
                 package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))
                 name = package_name + '.' + name
 
-        logging.getLogger(__name__).info('Try to import %s', name)
         return self.module_provider.get(self, name)
 
     def get_ast(self, module):

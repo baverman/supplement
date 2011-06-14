@@ -1,11 +1,12 @@
 import sys
-from os.path import dirname, basename, exists, join
-import imp
+from os.path import dirname, basename, exists, join, isfile, isdir
+import os
 import logging
 
 from .objects import create_object
 from .tree import NodeProvider
 from watcher import monitor
+
 
 class ModuleProvider(object):
     def __init__(self):
@@ -39,76 +40,55 @@ class ModuleProvider(object):
         return m
 
 
-class ModuleLoader(object):
-    def __init__(self, project, provider):
-        self.project = project
-        self.provider = provider
-        self.oldmodules = {}
-        self.cached_paths = {}
+def get_possible_project_modules(project):
+    for s in project.sources:
+        for n in os.listdir(s):
+            fname = join(s, n)
+            if isdir(fname) and exists(join(fname, '__init__.py')):
+                yield n
 
-    def imp(self, fullname):
-        __import__(fullname)
-        return sys.modules[fullname]
+            if isfile(fname) and n.endswith('.py'):
+                yield n[:-3]
 
-    def find_module(self, fullname, path=None):
-        logging.getLogger(__name__).info('IP try to import %s %s', fullname, path)
+def load_module(project, name):
+    pi = set(get_possible_project_modules(project))
 
+    bad_modules = {}
+    for k, v in sys.modules.items():
         try:
-            sys.modules[fullname].__file__
+            v.__file__
         except AttributeError:
-            self.cached_paths[fullname] = 'sys', None
-            return self
-        except:
-            pass
+            continue
 
-        package_name, sep, module_name = fullname.rpartition('.')
+        if not v:
+            bad_modules[k] = v
+            del sys.modules[k]
 
-        if package_name:
-            pkg = self.imp(package_name)
-            if getattr(pkg, '__path__', None):
-                paths = pkg.__path__
-            else:
-                self.cached_paths[fullname] = 'evaluated', getattr(pkg, module_name)
-                return self
-        else:
-            paths = self.project.paths
+        pkg_name = k.partition('.')[0]
+        if pkg_name in pi:
+            bad_modules[k] = v
+            del sys.modules[k]
 
-        try:
-            fr = imp.find_module(module_name, paths)
-            self.cached_paths[fullname] = 'load', fr
-            return self
-        except ImportError:
-            return None
+    oldsyspath = sys.path
+    sys.path = project.paths
+    try:
+        __import__(name)
+        return sys.modules[name]
+    finally:
+        sys.path = oldsyspath
 
-    def load_module(self, fullname):
-        what, data = self.cached_paths[fullname]
-        if what == 'evaluated':
-            if fullname in sys.modules:
-                if sys.modules[fullname] is not data:
-                    self.oldmodules[fullname] = sys.modules[fullname]
-                    sys.modules[fullname] = data
-            else:
-                sys.modules[fullname] = data
-
-        elif what == 'load':
+        for k, v in sys.modules.items():
             try:
-                self.oldmodules[fullname] = sys.modules[fullname]
-            except KeyError:
-                pass
+                v.__file__
+            except AttributeError:
+                continue
 
-            try:
-                imp.load_module(fullname, *data)
-            finally:
-                try:
-                    sys.modules[fullname] = self.oldmodules[fullname]
-                    del self.oldmodules[fullname]
-                except KeyError:
-                    pass
+            pkg_name = k.partition('.')[0]
+            if pkg_name in pi:
+                del sys.modules[k]
 
-                if data[0]:
-                    data[0].close()
+        sys.modules.update(bad_modules)
 
-        return sys.modules[fullname]
 
 class PackageResolver(object):
     def __init__(self):
@@ -164,12 +144,8 @@ class Module(object):
         except AttributeError:
             pass
 
-        loader = ModuleLoader(self.project, self.project.module_provider)
-        sys.meta_path.insert(0, loader)
-        try:
-            self._module = loader.imp(self.name)
-        finally:
-            sys.meta_path.pop(0)
+        logging.getLogger(__name__).info('Try to import %s', self.name)
+        self._module = load_module(self.project, self.name)
 
         return self._module
 

@@ -48,7 +48,7 @@ def create_scope(project, code, filename=None):
 
 def set_project_root(project, root):
     project.root = root
-    project.paths = [os.path.abspath(root)] + sys.path
+    project._refresh_paths()
 
 def pytest_funcarg__project(request):
     for crap_module in ('toimport', 'package'):

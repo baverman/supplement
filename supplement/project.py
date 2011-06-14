@@ -8,26 +8,29 @@ class Project(object):
     def __init__(self, root, config=None):
         self.root = root
         self.config = config or {}
-        self.sources = []
 
+        self._refresh_paths()
+
+        self.ast_provider = AstProvider()
+        self.module_provider = ModuleProvider()
+        self.package_resolver = PackageResolver()
+
+    def _refresh_paths(self):
+        self.sources = []
         self.paths = []
         if 'sources' in self.config:
             for p in self.config['sources']:
-                p = join(abspath(root), p)
+                p = join(abspath(self.root), p)
                 self.paths.append(p)
                 self.sources.append(p)
         else:
-            self.paths.append(abspath(root))
-            self.sources.append(abspath(root))
+            self.paths.append(abspath(self.root))
+            self.sources.append(abspath(self.root))
 
         for p in self.config.get('libs', []):
             self.paths.append(p)
 
         self.paths.extend(sys.path)
-
-        self.ast_provider = AstProvider()
-        self.module_provider = ModuleProvider()
-        self.package_resolver = PackageResolver()
 
     def get_module(self, name, filename=None):
         if name[0] == '.':

@@ -1,6 +1,5 @@
 import sys, os
 from os.path import abspath, join, isdir, isfile, exists, normpath, dirname
-import logging
 
 from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
@@ -10,21 +9,28 @@ class Project(object):
         self.root = root
         self.config = config or {}
 
+        self._refresh_paths()
+
+        self.ast_provider = AstProvider()
+        self.module_provider = ModuleProvider()
+        self.package_resolver = PackageResolver()
+
+    def _refresh_paths(self):
+        self.sources = []
         self.paths = []
         if 'sources' in self.config:
             for p in self.config['sources']:
-                self.paths.append(join(abspath(root), p))
+                p = join(abspath(self.root), p)
+                self.paths.append(p)
+                self.sources.append(p)
         else:
-            self.paths.append(abspath(root))
+            self.paths.append(abspath(self.root))
+            self.sources.append(abspath(self.root))
 
         for p in self.config.get('libs', []):
             self.paths.append(p)
 
         self.paths.extend(sys.path)
-
-        self.ast_provider = AstProvider()
-        self.module_provider = ModuleProvider()
-        self.package_resolver = PackageResolver()
 
     def get_module(self, name, filename=None):
         if name[0] == '.':
@@ -42,7 +48,6 @@ class Project(object):
                 package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))
                 name = package_name + '.' + name
 
-        logging.getLogger(__name__).info('Try to import %s', name)
         return self.module_provider.get(self, name)
 
     def get_ast(self, module):

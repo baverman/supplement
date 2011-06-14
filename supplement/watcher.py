@@ -1,10 +1,12 @@
 import time
 import threading
+import logging
 
 handlers = {}
 main_monitor = [None]
 
 def file_changed(filename):
+    logging.getLogger(__name__).info('File changed %s', filename)
     for v in handlers[filename]:
         v[0](filename, *v[1:])
 
@@ -23,6 +25,7 @@ class FallbackMonitor(object):
     def monitor(self, filename):
         from os.path import getmtime
         if filename not in self.files:
+            logging.getLogger(__name__).info('Monitor changes for %s', filename)
             self.files[filename] = getmtime(filename)
 
     def watch_for_changes(self):

@@ -235,3 +235,35 @@ def test_method_scope_must_know_self_type(project):
 
     obj = infer('self', scope, 7)
     assert 'bar' in obj
+
+def test_assign_chain(project):
+    scope = project.create_scope('''
+        def boo(name):
+            return []
+
+        def foo(name, data):
+            p = data[name] = boo(name)
+    ''')
+
+    obj = infer('p', scope.get_child_by_lineno(4), 6)
+    assert 'append' in obj
+
+def test_dict_must_remeber_its_subscript_assignments(project):
+    scope = project.create_scope('''
+        d = {}
+        d['index'] = []
+    ''')
+
+    obj = infer('d["index"]', scope, 3)
+    assert 'append' in obj
+
+def test_op_getitem_with_non_value_object(project):
+    scope = project.create_scope('''
+        def foo(name):
+            data = {}
+            data['sss'] = []
+            p = data[name]
+    ''')
+
+    obj = infer('p', scope.get_child_by_lineno(1), 4)
+    assert 'append' in obj

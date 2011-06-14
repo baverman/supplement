@@ -1,16 +1,18 @@
 import sys
-from os.path import dirname, basename, exists, join
+from os.path import dirname, basename, exists, join, isfile, isdir
+import os
+import logging
 
 from .objects import create_object
 from .tree import NodeProvider
 from .watcher import monitor
+
 
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
 
     def on_file_change(self, filename, module_name):
-        print('file changed [', filename, module_name, ']')
         try:
             del sys.modules[module_name]
         except KeyError:
@@ -36,6 +38,56 @@ class ModuleProvider(object):
             monitor(filename, self.on_file_change, name)
 
         return m
+
+
+def get_possible_project_modules(project):
+    for s in project.sources:
+        for n in os.listdir(s):
+            fname = join(s, n)
+            if isdir(fname) and exists(join(fname, '__init__.py')):
+                yield n
+
+            if isfile(fname) and n.endswith('.py'):
+                yield n[:-3]
+
+def load_module(project, name):
+    pi = set(get_possible_project_modules(project))
+
+    bad_modules = {}
+    for k, v in sys.modules.items():
+        try:
+            v.__file__
+        except AttributeError:
+            continue
+
+        if not v:
+            bad_modules[k] = v
+            del sys.modules[k]
+
+        pkg_name = k.partition('.')[0]
+        if pkg_name in pi:
+            bad_modules[k] = v
+            del sys.modules[k]
+
+    oldsyspath = sys.path
+    sys.path = project.paths
+    try:
+        __import__(name)
+        return sys.modules[name]
+    finally:
+        sys.path = oldsyspath
+
+        for k, v in sys.modules.items():
+            try:
+                v.__file__
+            except AttributeError:
+                continue
+
+            pkg_name = k.partition('.')[0]
+            if pkg_name in pi:
+                del sys.modules[k]
+
+        sys.modules.update(bad_modules)
 
 
 class PackageResolver(object):
@@ -92,17 +144,8 @@ class Module(object):
         except AttributeError:
             pass
 
-        try:
-            self._module = sys.modules[self.name]
-        except KeyError:
-            oldpath = sys.path
-            sys.path = self.project.paths
-            try:
-                __import__(self.name)
-            finally:
-                sys.path = oldpath
-
-            self._module = sys.modules[self.name]
+        logging.getLogger(__name__).info('Try to import %s', self.name)
+        self._module = load_module(self.project, self.name)
 
         return self._module
 
@@ -122,7 +165,7 @@ class Module(object):
         except AttributeError:
             pass
 
-        self.attrs.clear()
+        self._attrs.clear()
 
     @property
     def filename(self):

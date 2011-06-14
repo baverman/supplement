@@ -196,7 +196,7 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        return create_object(self, self.obj[idx])
+        return create_object(self, self.obj[idx.get_value()])
 
     def get_value(self):
         return self.obj
@@ -224,8 +224,6 @@ def wrap_in_descriptor(obj, attr):
     return attr
 
 def create_object(owner, obj, node=None):
-    from .module import Module
-
     node = node or ('undefined', None)
     obj_type = type(obj)
 
@@ -236,7 +234,7 @@ def create_object(owner, obj, node=None):
         newobj = FunctionObject(node, obj)
 
     elif obj_type == ModuleType:
-        return Module(owner.project, obj.__name__)
+        return owner.project.get_module(obj.__name__)
 
     elif issubclass(obj_type, type):
         newobj = ClassObject(node, obj)

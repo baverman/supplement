@@ -53,7 +53,7 @@ class Dict(object):
             idx = idx.get_value()
         except AttributeError:
             if data:
-                idx = data.keys()[0]
+                idx = next(iter(data.keys()))
             else:
                 return UnknownObject()
 

@@ -2,6 +2,7 @@ import logging
 
 class Object(object):
     def get_location(self):
+        raise NotImplementedError()
         return None, None
 
     def get_names(self):

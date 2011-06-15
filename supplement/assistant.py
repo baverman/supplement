@@ -175,10 +175,9 @@ def get_location(project, source, position, filename):
     if ctx_type == 'eval':
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
-
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         if not ctx:
-            obj = scope.get_name(match, lineno)
+            obj = scope.find_name(match, lineno)
         else:
             obj = infer(ctx, scope, lineno)[match]
     else:

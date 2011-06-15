@@ -283,14 +283,25 @@ def test_get_location_must_return_name_location_for_imported_names(project):
             pass
     ''')
 
-    source, pos = get_source_and_pos('''
+    source, pos = get_source_and_pos(u'''
         import toimport
-
         toimport.aa|a()
     ''')
 
     line, fname = get_location(project, source, pos, 'test.py')
     assert fname == 'toimport.py'
+    assert line == 1
+
+def test_get_location_must_return_name_location_for_imported_modules(project):
+    source, pos = get_source_and_pos(u'''
+        import sys
+
+        def foo():
+            sy|s
+    ''')
+
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == None
     assert line == 1
 
 def test_import_package_modules_from_init(project, tmpdir):

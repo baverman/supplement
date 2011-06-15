@@ -12,7 +12,7 @@ class Object(object):
         return name in self.get_names()
 
     def __getitem__(self, name):
-        raise KeyError(name)
+        return UnknownObject()
 
     def op_call(self, *args):
         return UnknownObject()

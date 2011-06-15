@@ -61,7 +61,10 @@ class Dict(object):
 
     def op_setitem(self, idx, value):
         data = self.get_data()
-        data[idx.get_value()] = value
+        try:
+            data[idx.get_value()] = value
+        except AttributeError:
+            pass
 
     def get_names(self):
         return self.object.get_names()

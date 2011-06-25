@@ -25,7 +25,7 @@ def create_module(project, name, source):
     m.source = source
     module.__file__ = name + '.py'
 
-    project.module_provider.cache[name] = m
+    project.module_providers['default'].cache[name] = m
 
     package_name, _, module_name = name.rpartition('.')
     if package_name:
@@ -35,7 +35,7 @@ def create_module(project, name, source):
         setattr(sys.modules[package_name], module_name, module)
         p._module.__file__ = None
         p.source = None
-        project.module_provider.cache[package_name] = p
+        project.module_providers['default'].cache[package_name] = p
 
     return m
 

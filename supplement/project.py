@@ -1,5 +1,6 @@
 import sys, os
 from os.path import abspath, join, isdir, isfile, exists, normpath, dirname
+import logging
 
 from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
@@ -8,12 +9,14 @@ class Project(object):
     def __init__(self, root, config=None):
         self.root = root
         self.config = config or {}
-
         self._refresh_paths()
 
         self.ast_provider = AstProvider()
-        self.module_provider = ModuleProvider()
+        self.module_providers = {
+            'default':ModuleProvider()
+        }
         self.package_resolver = PackageResolver()
+        self.docstring_processors = []
 
     def _refresh_paths(self):
         self.sources = []
@@ -33,6 +36,12 @@ class Project(object):
         self.paths.extend(sys.path)
 
     def get_module(self, name, filename=None):
+        # TODO very weak decision.
+        # Should move relative python modules handling into appropriate class
+        ctx, sep, name = name.partition(':')
+        if not sep:
+            ctx, name = 'default', ctx
+
         if name[0] == '.':
             if not filename:
                 raise Exception('You should provide source filename to resolve relative imports')
@@ -48,7 +57,7 @@ class Project(object):
                 package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))
                 name = package_name + '.' + name
 
-        return self.module_provider.get(self, name)
+        return self.module_providers[ctx].get(self, name)
 
     def get_ast(self, module):
         return self.ast_provider.get(module)
@@ -88,3 +97,30 @@ class Project(object):
                         result.append(name.rpartition('.')[0])
 
         return result
+
+    def register_hook(self, name):
+        try:
+            __import__(name)
+            sys.modules[name].init(self)
+        except:
+            logging.getLogger(__name__).exception('[%s] register failed' % name)
+
+    def add_docstring_processor(self, processor):
+        self.docstring_processors.append(processor)
+
+    def add_module_provider(self, ctx, provider):
+        self.module_providers[ctx] = provider
+
+    def process_docstring(self, docstring, obj):
+        for p in self.docstring_processors:
+            result = p(docstring, obj)
+            if result is not None:
+                return result
+
+        return obj
+
+    def get_filename(self, name, rel=None):
+        if name.startswith('/'):
+            return join(self.root, name[1:])
+
+        return join(dirname(rel), name)

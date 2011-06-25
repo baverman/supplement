@@ -22,8 +22,8 @@ class ModuleProvider(object):
             m = self.cache[module_name]
         except KeyError:
             pass
-
-        m.invalidate()
+        else:
+            m.invalidate()
 
     def get(self, project, name):
         try:
@@ -228,3 +228,6 @@ class Module(object):
             return None
 
         return scope.get_scope_at(self.get_source(), lineno)
+
+    def get_docstring(self):
+        return None

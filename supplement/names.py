@@ -128,6 +128,9 @@ class ClassName(Object):
         self.scope = scope
         self.node = node
 
+    def get_docstring(self):
+        return ast.get_docstring(self.node)
+
     def get_bases(self):
         try:
             return self._bases
@@ -307,5 +310,9 @@ def create_name(node, owner):
     obj = node[0](*node[1:])
     obj.project = owner.project
     obj.filename = owner.filename
+
+    ds = obj.get_docstring()
+    if ds:
+        obj = owner.project.process_docstring(ds, obj)
 
     return obj

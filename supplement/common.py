@@ -29,6 +29,9 @@ class Object(object):
     def get_assigned_attributes(self):
         return {}
 
+    def get_docstring(self):
+        return None
+
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -58,6 +61,9 @@ class GetObjectDelegate(object):
     def get_assigned_attributes(self):
         return self.get_object().get_assigned_attributes()
 
+    def get_docstring(self):
+        return self.get_object().get_docstring()
+
 
 class UnknownObject(Object): pass
 
@@ -75,3 +81,13 @@ class Value(object):
 
         self._object = self.scope.eval(self.value, False)
         return self._object
+
+
+class ClassProxy(GetObjectDelegate):
+    def __init__(self, project, module_name, class_name):
+        self.class_name = class_name
+        self.module_name = module_name
+        self.project = project
+
+    def get_object(self):
+        return self.project.get_module(self.module_name)[self.class_name]

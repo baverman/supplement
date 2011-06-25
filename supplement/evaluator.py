@@ -1,7 +1,7 @@
 import ast
 
 from .objects import create_object
-from .common import Value, UnknownObject
+from .common import Value, UnknownObject, Object
 
 def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
@@ -12,7 +12,7 @@ def infer(string, scope, lineno=None):
     return Evaluator().process(tree, scope)
 
 
-class Indexable(object):
+class Indexable(Object):
     def __init__(self, scope, obj, nodes):
         self.values = [Value(scope, r) for r in nodes]
         self.object = obj
@@ -23,14 +23,11 @@ class Indexable(object):
     def get_names(self):
         return self.object.get_names()
 
-    def __contains__(self, name):
-        return name in self.object
-
     def __getitem__(self, name):
         return self.object[name]
 
 
-class Dict(object):
+class Dict(Object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node
@@ -68,9 +65,6 @@ class Dict(object):
 
     def get_names(self):
         return self.object.get_names()
-
-    def __contains__(self, name):
-        return name in self.object
 
     def __getitem__(self, name):
         return self.object[name]
@@ -136,12 +130,21 @@ class Evaluator(ast.NodeVisitor):
         self.ops = []
         self.stack = []
 
-        if skip_toplevel:
-            self.generic_visit(tree)
-        else:
-            self.visit(tree)
+        try:
+            if skip_toplevel:
+                self.generic_visit(tree)
+            else:
+                self.visit(tree)
 
-        if len(self.stack) != 1:
-            raise Exception('invalid eval stack:', repr(self.stack))
+            if len(self.stack) != 1:
+                raise Exception('invalid eval stack:', repr(self.stack))
+        except:
+            print '<<<<<<<<<<'
+            import traceback
+            traceback.print_exc()
+            print
+            from .tree import dump_tree; dump_tree(tree)
+            print '>>>>>>>>>>'
+            raise
 
         return self.stack[0]

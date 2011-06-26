@@ -124,7 +124,7 @@ class Evaluator(ast.NodeVisitor):
         self.push(obj.op_getitem(idx))
 
     def process(self, tree, scope, skip_toplevel=True):
-        #from .tree import dump_tree; dump_tree(tree); print
+        #from .tree import dump_tree; print '!!!', scope.filename; dump_tree(tree); print
 
         self.scope = scope
         self.ops = []
@@ -143,6 +143,7 @@ class Evaluator(ast.NodeVisitor):
             import traceback
             traceback.print_exc()
             print
+            print '!!!', scope.filename
             from .tree import dump_tree; dump_tree(tree)
             print '>>>>>>>>>>'
             raise

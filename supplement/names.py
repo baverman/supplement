@@ -1,4 +1,5 @@
 import ast
+import logging
 
 from .tree import ReturnExtractor
 from .common import Object, UnknownObject, GetObjectDelegate, Value
@@ -311,8 +312,12 @@ def create_name(node, owner):
     obj.project = owner.project
     obj.filename = owner.filename
 
-    ds = obj.get_docstring()
-    if ds:
-        obj = owner.project.process_docstring(ds, obj)
+    try:
+        ds = obj.get_docstring()
+    except:
+        logging.getLogger(__name__).exception("Can't get docstring")
+    else:
+        if ds:
+            obj = owner.project.process_docstring(ds, obj)
 
     return obj

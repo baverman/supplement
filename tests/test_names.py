@@ -99,3 +99,35 @@ def test_class_object_must_provide_attributes_assigned_in_parent_methods(project
     obj = scope.get_name('foo', 8)
     assert 'boo_attr' in obj
     assert 'append' in obj['boo_attr']
+
+def test_for_names(project):
+    source = cleantabs('''
+        for n, (m, l) in []:
+            pass
+    ''')
+
+    scope = get_scope_at(project, source, 2)
+
+    obj = scope.get_name('n')
+    assert obj
+
+    obj = scope.get_name('m')
+    assert obj
+
+    obj = scope.get_name('l')
+    assert obj
+
+def test_method_name_call_should_resolve_self_properly(project):
+    source = cleantabs('''
+        class Foo(object):
+            def foo(self):
+                return self.aaa
+
+            def bar(self):
+                self.aaa = 'name'
+                result = self.foo()
+    ''')
+
+    scope = get_scope_at(project, source, 8)
+    obj = scope.get_name('result')
+    assert 'lower' in obj

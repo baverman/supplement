@@ -91,3 +91,15 @@ class ClassProxy(GetObjectDelegate):
 
     def get_object(self):
         return self.project.get_module(self.module_name)[self.class_name]
+
+
+class MethodObject(GetObjectDelegate):
+    def __init__(self, obj, func_obj):
+        self.object = obj
+        self.function = func_obj
+
+    def get_object(self):
+        return self.function
+
+    def op_call(self, args):
+        return self.function.op_call([self.object] + args)

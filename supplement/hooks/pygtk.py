@@ -102,7 +102,6 @@ class GladeClass(Object):
 
         name = self.get_names()[name]
         obj = self._attrs[name] = FakeInstanceObject(self.get_gtk_object(name[0]))
-
         return obj
 
 

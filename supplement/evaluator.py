@@ -139,13 +139,13 @@ class Evaluator(ast.NodeVisitor):
             if len(self.stack) != 1:
                 raise Exception('invalid eval stack:', repr(self.stack))
         except:
-            print '<<<<<<<<<<'
-            import traceback
-            traceback.print_exc()
-            print
-            print '!!!', scope.filename
-            from .tree import dump_tree; dump_tree(tree)
-            print '>>>>>>>>>>'
+            #print '<<<<<<<<<<'
+            #import traceback
+            #traceback.print_exc()
+            #print
+            #print '!!!', scope.filename
+            #from .tree import dump_tree; dump_tree(tree)
+            #print '>>>>>>>>>>'
             raise
 
         return self.stack[0]

@@ -2,7 +2,7 @@ import ast
 import logging
 
 from .tree import ReturnExtractor
-from .common import Object, UnknownObject, GetObjectDelegate, Value
+from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject
 
 
 class Valuable(object):
@@ -122,6 +122,9 @@ class FunctionName(Object):
             self._calling = False
 
         return UnknownObject()
+
+    def as_method_for(self, obj):
+        return MethodObject(obj, self)
 
 
 class ClassName(Object):
@@ -259,6 +262,22 @@ class NameExtractor(ast.NodeVisitor):
                 if tail:
                     self.additional_imports.setdefault(name, []).append(tail)
 
+    def get_names_from_target(self, target, result):
+        if isinstance(target, ast.Tuple):
+            for r in target.elts:
+                self.get_names_from_target(r, result)
+
+        else:
+            result.append(target.id)
+
+        return result
+
+    def visit_For(self, node):
+        for n in self.get_names_from_target(node.target, []):
+            self.add_name(n, (Object, ), node.lineno)
+
+        self.generic_visit(node)
+
     def visit_ClassDef(self, node):
         class_scope = self.scope.get_child_by_lineno(node.lineno)
         self.add_name(node.name, (ClassName, class_scope, node), node.lineno)
@@ -315,7 +334,8 @@ def create_name(node, owner):
     try:
         ds = obj.get_docstring()
     except:
-        logging.getLogger(__name__).exception("Can't get docstring")
+        pass
+        #logging.getLogger(__name__).exception("Can't get docstring")
     else:
         if ds:
             obj = owner.project.process_docstring(ds, obj)

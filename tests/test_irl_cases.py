@@ -34,3 +34,10 @@ def test_assist_for_gtk_class_properties(project):
         gtk.Window.props.''')
 
     assert 'has_focus' in result
+
+def test_misterious_pygtk_hooks_attribute_resolving(project):
+    m = project.get_module('supplement.hooks.pygtk')
+    scope = m.get_scope_at(102)
+
+    obj = scope.get_name('self')
+    assert '_names' in obj

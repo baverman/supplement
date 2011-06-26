@@ -1,4 +1,5 @@
 import ast
+import logging
 
 from .evaluator import Evaluator
 from .names import NameExtractor, create_name, ArgumentName
@@ -106,7 +107,12 @@ class Scope(object):
                     self._names[name].sort(reverse=True)
 
             for target, idx, value in sassigns:
-                self.eval(target, False).op_setitem(self.eval(idx, False), self.eval(value, False))
+                t = self.eval(target, False)
+                if t:
+                    t.op_setitem(self.eval(idx, False), self.eval(value, False))
+                else:
+                    logging.getLogger(__name__).error(
+                        "Can't eval target on subscript assign %s %s", self.filename, vars(target))
 
         if lineno is None:
             return self._names

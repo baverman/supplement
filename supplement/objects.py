@@ -1,7 +1,7 @@
 from types import FunctionType, ClassType, ModuleType
 
 from .tree import CtxNodeProvider
-from .common import Object, GetObjectDelegate
+from .common import Object, GetObjectDelegate, MethodObject
 
 def dir_top(obj):
     try:
@@ -57,17 +57,8 @@ class FunctionObject(LocationObject):
         else:
             return Object(None)
 
-
-class MethodObject(GetObjectDelegate):
-    def __init__(self, obj, func_obj):
-        self.object = obj
-        self.function = func_obj
-
-    def get_object(self):
-        return self.function
-
-    def op_call(self, args):
-        return self.function.op_call([self.object] + args)
+    def as_method_for(self, obj):
+        return MethodObject(obj, self)
 
 
 class DescriptorObject(GetObjectDelegate):
@@ -210,10 +201,10 @@ class InstanceObject(LocationObject):
 
 
 def wrap_in_method(obj, attr):
-    if type(attr) is FunctionObject:
-        return MethodObject(obj, attr)
-
-    return attr
+    try:
+        return attr.as_method_for(obj)
+    except AttributeError:
+        return attr
 
 def wrap_in_descriptor(obj, attr):
     if isinstance(attr, DescriptorObject):

@@ -35,9 +35,10 @@ def test_assist_for_gtk_class_properties(project):
 
     assert 'has_focus' in result
 
-def test_misterious_pygtk_hooks_attribute_resolving(project):
-    m = project.get_module('supplement.hooks.pygtk')
-    scope = m.get_scope_at(102)
+def test_logging_getLogger(project):
+    result = do_assist(project, '''
+        import logging
+        logging.getLogger(__name__).|
+    ''')
 
-    obj = scope.get_name('self')
-    assert '_names' in obj
+    assert 'exception' in result

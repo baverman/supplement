@@ -5,6 +5,8 @@ import logging
 
 from .objects import create_object
 from .tree import NodeProvider
+from .scope import Scope
+
 from watcher import monitor
 
 
@@ -214,11 +216,10 @@ class Module(object):
         if not node:
             self._scope = scope = None
         else:
-            from .scope import Scope
-
-            self._scope = scope = Scope(node, '', None, 'module')
+            self._scope = scope = DynScope(node, '', None, 'module')
             scope.project = self.project
             scope.filename = self.filename
+            scope.module = self
 
         return scope
 
@@ -231,3 +232,13 @@ class Module(object):
 
     def get_docstring(self):
         return None
+
+class DynScope(Scope):
+    def get_name(self, name, lineno=None):
+        if lineno is None:
+            try:
+                return self.module[name]
+            except KeyError:
+                pass
+
+        return Scope.get_name(self, name, lineno)

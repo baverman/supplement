@@ -67,6 +67,9 @@ class Scope(object):
         else:
             self.fullname = name
 
+    def __repr__(self):
+        return '<Scope %s %s %s>' % (self.type, self.fullname, self.filename)
+
     def get_lineno(self):
         try:
             return self.node.lineno
@@ -94,7 +97,7 @@ class Scope(object):
             if c.get_lineno() == lineno:
                 return c
 
-        raise KeyError('lineno: ' + lineno)
+        raise KeyError('lineno: %d' % lineno)
 
     def get_names(self, lineno=None):
         try:
@@ -206,6 +209,9 @@ class CallScope(object):
         self.args = args
         self.project = parent.project
         self.filename = parent.filename
+
+    def __repr__(self):
+        return '<CallScope %s %s>' % (self.fullname, self.filename)
 
     def get_names(self):
         return self.parent.get_names()

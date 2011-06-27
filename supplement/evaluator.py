@@ -123,6 +123,9 @@ class Evaluator(ast.NodeVisitor):
 
         self.push(obj.op_getitem(idx))
 
+    def visit_BoolOp(self, node):
+        self.visit(node.values[-1])
+
     def process(self, tree, scope, skip_toplevel=True):
         #from .tree import dump_tree; print '!!!', scope.filename; dump_tree(tree); print
 
@@ -139,13 +142,13 @@ class Evaluator(ast.NodeVisitor):
             if len(self.stack) != 1:
                 raise Exception('invalid eval stack:', repr(self.stack))
         except:
-            #print '<<<<<<<<<<'
-            #import traceback
-            #traceback.print_exc()
-            #print
-            #print '!!!', scope.filename
-            #from .tree import dump_tree; dump_tree(tree)
-            #print '>>>>>>>>>>'
+            print '<<<<<<<<<<'
+            import traceback
+            traceback.print_exc()
+            print
+            print '!!!', scope.filename
+            from .tree import dump_tree; dump_tree(tree)
+            print '>>>>>>>>>>'
             raise
 
         return self.stack[0]

@@ -77,14 +77,18 @@ class Server(object):
 if __name__ == '__main__':
     import os
     from multiprocessing.connection import Listener
+    import logging
 
     if 'SUPP_LOG_LEVEL' in os.environ:
-        import logging
-        logger = logging.getLogger('supplement')
-        logger.setLevel(int(os.environ['SUPP_LOG_LEVEL']))
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
-        logger.addHandler(handler)
+        level = int(os.environ['SUPP_LOG_LEVEL'])
+    else:
+        level = logging.ERROR
+
+    logger = logging.getLogger('supplement')
+    logger.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
 
     listener = Listener(sys.argv[1])
     conn = listener.accept()

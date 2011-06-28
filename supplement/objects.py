@@ -1,3 +1,4 @@
+import logging
 from types import FunctionType, ClassType, ModuleType
 
 from .tree import CtxNodeProvider
@@ -187,7 +188,14 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        return create_object(self, self.obj[idx.get_value()])
+        idx = idx.get_value()
+        try:
+            value = self.obj[idx]
+        except Exception, e:
+            logging.getLogger(__name__).error(e)
+            return Object()
+
+        return create_object(self, value)
 
     def get_value(self):
         return self.obj

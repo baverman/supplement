@@ -223,6 +223,36 @@ class ArgumentName(GetObjectDelegate):
         return AttributesAssignsExtractor().process(self.name, self.scope, self.scope.node)
 
 
+class VarargName(GetObjectDelegate):
+    def __init__(self, scope):
+        self.scope = scope
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        from .objects import InstanceObject
+        self._object = InstanceObject(('undefined', None), ())
+        return self._object
+
+
+class KwargName(GetObjectDelegate):
+    def __init__(self, scope):
+        self.scope = scope
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        from .objects import InstanceObject
+        self._object = InstanceObject(('undefined', None), {})
+        return self._object
+
+
 class AttributesAssignsExtractor(ast.NodeVisitor):
     def visit_Assign(self, node):
         for t in node.targets:
@@ -301,6 +331,14 @@ class NameExtractor(ast.NodeVisitor):
 
         for d in node.defaults:
             self.scope.defaults.append(Value(self.scope.parent, d))
+
+        if node.vararg:
+            self.scope.vararg = node.vararg
+            self.add_name(node.vararg, (VarargName, self.scope), self.scope.node.lineno)
+
+        if node.kwarg:
+            self.scope.kwarg = node.kwarg
+            self.add_name(node.kwarg, (KwargName, self.scope), self.scope.node.lineno)
 
     def add_name(self, name, value, lineno):
         if name in self.names:

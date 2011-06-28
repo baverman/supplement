@@ -1,7 +1,9 @@
 import ast
+import logging
 
 from .objects import create_object
 from .common import Value, UnknownObject, Object
+from .names import RecursiveCallException
 
 def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
@@ -18,7 +20,13 @@ class Indexable(Object):
         self.object = obj
 
     def op_getitem(self, idx):
-        return self.values[idx.get_value()].get_object()
+        idx = idx.get_value()
+        try:
+            value = self.values[idx]
+        except IndexError:
+            return UnknownObject()
+
+        return value.get_object()
 
     def get_names(self):
         return self.object.get_names()
@@ -126,6 +134,9 @@ class Evaluator(ast.NodeVisitor):
     def visit_BoolOp(self, node):
         self.visit(node.values[-1])
 
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+
     def process(self, tree, scope, skip_toplevel=True):
         #from .tree import dump_tree; print '!!!', scope.filename; dump_tree(tree); print
 
@@ -141,14 +152,14 @@ class Evaluator(ast.NodeVisitor):
 
             if len(self.stack) != 1:
                 raise Exception('invalid eval stack:', repr(self.stack))
+        except RecursiveCallException:
+            raise
         except:
-            print '<<<<<<<<<<'
-            import traceback
-            traceback.print_exc()
-            print
-            print '!!!', scope.filename
-            from .tree import dump_tree; dump_tree(tree)
-            print '>>>>>>>>>>'
+            from .tree import dump_tree
+            logger = logging.getLogger(__name__)
+            logger.exception('\n<<<<<<<<<<<<<<<<<')
+            logger.error('\n|||||||||||| %s - %s - %s\n%s>>>>>>>>>>\n', scope.__class__.__name__,
+                scope.fullname, scope.filename, dump_tree(tree))
             raise
 
         return self.stack[0]

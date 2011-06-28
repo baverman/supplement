@@ -2,8 +2,9 @@ import ast
 import logging
 
 from .evaluator import Evaluator
-from .names import NameExtractor, create_name, ArgumentName
+from .names import NameExtractor, create_name, ArgumentName, VarargName
 from .names import ClassName, FunctionName, ImportedName
+from .common import ListHolder
 
 def traverse_tree(root):
     yield root
@@ -141,8 +142,8 @@ class Scope(object):
                 node_names = self._names[name]
 
             names = self._attrs[name] = []
-            for line, node in node_names:
-                names.append((line, create_name(node, self)))
+            for line, node in reversed(node_names):
+                names.insert(0, (line, create_name(node, self)))
 
         if lineno is None:
             return names[0][1]
@@ -235,6 +236,9 @@ class CallScope(object):
             except IndexError:
                 return self.parent.defaults[obj.index - len(self.args)].get_object()
 
+        if isinstance(obj, VarargName):
+            return ListHolder(obj, self.args[len(self.parent.args):])
+
         return obj
 
     def __getitem__(self, name):
@@ -282,6 +286,8 @@ class ScopeExtractor(ast.NodeVisitor):
         scope = Scope(node, node.name, self.scope, 'func')
         scope.args = {}
         scope.defaults = []
+        scope.vararg = None
+        scope.kwarg = None
         scope.function = create_name((FunctionName, scope, node), scope)
         self.children.append(scope)
 

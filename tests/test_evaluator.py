@@ -286,3 +286,12 @@ def test_function_call_with_default_args(project):
 
     obj = infer("foo('name')", scope, 100)
     assert 'append' in obj
+
+def test_function_call_with_starargs(project):
+    scope = project.create_scope('''
+        def foo(*args):
+            return args[1]
+    ''')
+
+    obj = infer("foo('name', [])", scope, 100)
+    assert 'append' in obj

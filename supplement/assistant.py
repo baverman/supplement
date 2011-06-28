@@ -6,12 +6,14 @@ from .scope import get_scope_at
 from .evaluator import infer
 
 def get_scope_names(scope, lineno=None):
+    inject_bases = scope.type == 'class'
     project = scope.project
     while scope:
         yield scope.get_names(lineno)
         lineno = None
 
-        if scope.type == 'class':
+        if inject_bases:
+            inject_bases = False
             yield scope.cls.get_names()
 
         scope = scope.parent

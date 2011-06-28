@@ -42,3 +42,11 @@ def test_logging_getLogger(project):
     ''')
 
     assert 'exception' in result
+
+def test_re_compile(project):
+    result = do_assist(project, '''
+        import re
+        re.compile('re').|
+    ''')
+
+    assert 'exception' in result

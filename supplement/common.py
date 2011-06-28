@@ -103,3 +103,15 @@ class MethodObject(GetObjectDelegate):
 
     def op_call(self, args):
         return self.function.op_call([self.object] + args)
+
+
+class ListHolder(GetObjectDelegate):
+    def __init__(self, obj, values):
+        self.values = values
+        self.object = obj
+
+    def get_object(self):
+        return self.object
+
+    def op_getitem(self, idx):
+        return self.values[idx.get_value()]

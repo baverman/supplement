@@ -277,3 +277,12 @@ def test_unknown_attributes_call(project):
 
     obj = infer('data[0]', scope.get_child_by_lineno(1), 100)
     assert type(obj) == UnknownObject
+
+def test_function_call_with_default_args(project):
+    scope = project.create_scope('''
+        def foo(name, opt=[]):
+            return opt
+    ''')
+
+    obj = infer("foo('name')", scope, 100)
+    assert 'append' in obj

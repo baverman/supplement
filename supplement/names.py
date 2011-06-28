@@ -299,6 +299,9 @@ class NameExtractor(ast.NodeVisitor):
             self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
             self.scope.args[i] = n.id
 
+        for d in node.defaults:
+            self.scope.defaults.append(Value(self.scope.parent, d))
+
     def add_name(self, name, value, lineno):
         if name in self.names:
             self.names[name].insert(0, (lineno, value))

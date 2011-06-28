@@ -230,7 +230,10 @@ class CallScope(object):
     def get_name(self, name, lineno=None):
         obj = self.parent.get_name(name, lineno)
         if isinstance(obj, ArgumentName):
-            return self.args[obj.index]
+            try:
+                return self.args[obj.index]
+            except IndexError:
+                return self.parent.defaults[obj.index - len(self.args)].get_object()
 
         return obj
 
@@ -278,6 +281,7 @@ class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         scope = Scope(node, node.name, self.scope, 'func')
         scope.args = {}
+        scope.defaults = []
         scope.function = create_name((FunctionName, scope, node), scope)
         self.children.append(scope)
 

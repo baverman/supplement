@@ -37,7 +37,14 @@ def est_provider_must_resolve_params_of_handlers_defined_in_glade_file(project):
         '       wnd.')
     assert 'set_title' in result
 
-def est_provider_must_allow_to_implement_glade_handlers(project):
-    result = get_proposals(project, 'pass\n\n'
-        '   def on')
+def test_provider_must_allow_to_implement_glade_handlers(project):
+    project.register_hook('supplement.hooks.pygtk')
+    source, pos = get_source_and_pos('''
+        class Window(object):
+            """glade-file: tests/pygtktest/sample.glade"""
+
+            def on|
+    ''')
+
+    result = assist(project, source, pos, 'test.py')
     assert 'on_window1_delete_event' in result

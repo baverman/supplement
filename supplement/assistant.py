@@ -10,6 +10,10 @@ def get_scope_names(scope, lineno=None):
     while scope:
         yield scope.get_names(lineno)
         lineno = None
+
+        if scope.type == 'class':
+            yield scope.cls.get_names()
+
         scope = scope.parent
 
     m = project.get_module('__builtin__')

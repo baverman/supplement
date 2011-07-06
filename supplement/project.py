@@ -18,6 +18,8 @@ class Project(object):
         self.package_resolver = PackageResolver()
         self.docstring_processors = []
 
+        self.override = [join(dirname(__file__), 'override')]
+
     def _refresh_paths(self):
         self.sources = []
         self.paths = []
@@ -124,3 +126,6 @@ class Project(object):
             return join(self.root, name[1:])
 
         return join(dirname(rel), name)
+
+    def add_override(self, path):
+        self.override.append(path)

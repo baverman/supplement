@@ -1,11 +1,6 @@
 from supplement.assistant import assist
 
-from .helpers import pytest_funcarg__project, get_source_and_pos
-
-def do_assist(project, source, filename=None):
-    filename = filename or 'test.py'
-    source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
+from .helpers import pytest_funcarg__project, do_assist
 
 def test_assist_for_watcher_raises_KeyError(project):
     result = do_assist(project, '''
@@ -39,14 +34,6 @@ def test_logging_getLogger(project):
     result = do_assist(project, '''
         import logging
         logging.getLogger(__name__).|
-    ''')
-
-    assert 'exception' in result
-
-def test_re_compile(project):
-    result = do_assist(project, '''
-        import re
-        re.compile('re').|
     ''')
 
     assert 'exception' in result

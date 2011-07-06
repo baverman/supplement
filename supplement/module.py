@@ -33,7 +33,14 @@ class ModuleProvider(object):
         except KeyError:
             pass
 
-        m = self.cache[name] = Module(project, name)
+        m = Module(project, name)
+
+        for path in project.override:
+            fname = join(path, name + '.py')
+            if exists(fname):
+                m = OverrideModule(project, m, fname)
+
+        self.cache[name] = m
 
         filename = m.filename
         if filename:
@@ -242,3 +249,37 @@ class DynScope(Scope):
                 pass
 
         return Scope.get_name(self, name, lineno)
+
+class OverrideModule(Module):
+    def __init__(self, project, module, filename):
+        Module.__init__(self, project, module.name)
+        self._filename = filename
+        self.overrided_module = module
+
+    @property
+    def module(self):
+        try:
+            return self._module
+        except AttributeError:
+            pass
+
+        import imp
+        logging.getLogger(__name__).info('Try to override %s from %s', self.name, self._filename)
+        self._module = imp.new_module(self.name)
+        self._module.__orig__ = self.overrided_module.module
+        execfile(self._filename, self._module.__dict__)
+
+        return self._module
+
+    @property
+    def filename(self):
+        return self._filename
+
+    def get_names(self):
+        return Module.get_names(self).union(self.overrided_module.get_names())
+
+    def __getitem__(self, name):
+        try:
+            return Module.__getitem__(self, name)
+        except KeyError:
+            return self.overrided_module[name]

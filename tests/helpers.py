@@ -5,6 +5,7 @@ from supplement.module import Module
 from supplement.project import Project
 from supplement.fixer import fix
 from supplement.scope import Scope
+from supplement.assistant import assist
 
 
 class TestModule(Module):
@@ -84,3 +85,8 @@ def get_source_and_pos(source):
         pos = len(source)
 
     return source.replace('|', ''), pos
+
+def do_assist(project, source, filename=None):
+    filename = filename or 'test.py'
+    source, pos = get_source_and_pos(source)
+    return assist(project, source, pos, filename)

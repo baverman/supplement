@@ -14,6 +14,13 @@ def infer(string, scope, lineno=None):
     return Evaluator().process(tree, scope)
 
 
+class Slice(Object):
+    def __init__(self, upper, lower, step):
+        self.upper = upper
+        self.lower = lower
+        self.step = step
+
+
 class Indexable(Object):
     def __init__(self, scope, obj, nodes):
         self.values = [Value(scope, r) for r in nodes]
@@ -130,6 +137,27 @@ class Evaluator(ast.NodeVisitor):
         obj = self.pop()
 
         self.push(obj.op_getitem(idx))
+
+    def visit_Slice(self, node):
+        if node.upper:
+            self.visit(node.upper)
+            upper = self.pop()
+        else:
+            upper = None
+
+        if node.lower:
+            self.visit(node.lower)
+            lower = self.pop()
+        else:
+            lower = None
+
+        if node.step:
+            self.visit(node.step)
+            step = self.pop()
+        else:
+            step = None
+
+        self.push(Slice(upper, lower, step))
 
     def visit_BoolOp(self, node):
         self.visit(node.values[-1])

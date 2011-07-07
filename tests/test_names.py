@@ -100,6 +100,23 @@ def test_class_object_must_provide_attributes_assigned_in_parent_methods(project
     assert 'boo_attr' in obj
     assert 'append' in obj['boo_attr']
 
+def test_assign_to_complex_slice(project):
+    source = cleantabs('''
+        class Foo(object):
+            def boo(self):
+                self.boo_attr = []
+
+            def foo(self):
+                self.boo_attr[:] = []
+
+        foo = Foo()
+    ''')
+
+    scope = get_scope_at(project, source, 8)
+
+    obj = scope.get_name('foo', 8)
+    assert 'append' in obj['boo_attr']
+
 def test_for_names(project):
     source = cleantabs('''
         for n, (m, l) in []:

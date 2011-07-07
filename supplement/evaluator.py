@@ -1,7 +1,7 @@
 import ast
 import logging
 
-from .objects import create_object
+from .objects import create_object, FakeInstanceObject
 from .common import Value, UnknownObject, Object
 from .names import RecursiveCallException
 
@@ -164,6 +164,9 @@ class Evaluator(ast.NodeVisitor):
 
     def visit_BinOp(self, node):
         self.visit(node.left)
+
+    def visit_Compare(self, node):
+        self.push(FakeInstanceObject(create_object(self.scope, bool)))
 
     def process(self, tree, scope, skip_toplevel=True):
         #from .tree import dump_tree; print '!!!', scope.filename; print dump_tree(tree); print

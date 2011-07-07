@@ -117,6 +117,21 @@ def test_assign_to_complex_slice(project):
     obj = scope.get_name('foo', 8)
     assert 'append' in obj['boo_attr']
 
+def test_assign_to_attribute_of_attribute(project):
+    source = cleantabs('''
+        class Foo(object):
+            def boo(self):
+                self.boo_attr = []
+                self.boo_attr.foo_attr = {}
+
+        foo = Foo()
+    ''')
+
+    scope = get_scope_at(project, source, 6)
+
+    obj = scope.get_name('foo', 6)
+    assert 'append' in obj['boo_attr']
+
 def test_for_names(project):
     source = cleantabs('''
         for n, (m, l) in []:

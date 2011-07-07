@@ -256,7 +256,7 @@ class KwargName(GetObjectDelegate):
 class AttributesAssignsExtractor(ast.NodeVisitor):
     def visit_Assign(self, node):
         for t in node.targets:
-            if type(t) == ast.Attribute and t.value.id == self.name:
+            if type(t) == ast.Attribute and type(t.value) == ast.Name and t.value.id == self.name:
                 self.result[t.attr] = Value(self.scope, node.value)
 
     def process(self, name, scope, node):

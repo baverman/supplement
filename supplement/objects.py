@@ -49,10 +49,12 @@ class FunctionObject(LocationObject):
         LocationObject.__init__(self, node)
         self.func = func
 
-    def op_call(self, args):
+    def get_scope(self):
         module = self.project.get_module(self.func.__module__)
-        scope = module.get_scope_at(self.func.func_code.co_firstlineno)
+        return module.get_scope_at(self.func.func_code.co_firstlineno)
 
+    def op_call(self, args):
+        scope = self.get_scope()
         if scope:
             return scope.function.op_call(args)
         else:
@@ -81,46 +83,91 @@ class ClassObject(LocationObject):
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
 
-    def collect_names(self, cls, names, collected_classes, level):
-        for k in cls.__dict__:
-            if k not in names or names[k][1] > level:
-                names[k] = cls, level
-
-        collected_classes.add(cls)
-        for cls in cls.__bases__:
-            if cls not in collected_classes:
-                self.collect_names(cls, names, collected_classes, level + 1)
-
-    def get_names(self):
+    def get_bases(self):
         try:
-            return self._names
+            return self._bases
         except AttributeError:
             pass
 
-        self._names = {}
-        self.collect_names(self.cls, self._names, set(), 0)
-        return self._names
+        self._bases = []
+        for cls in self.cls.__bases__:
+            module = self.project.get_module(cls.__module__)
+            try:
+                clsobj = module[cls.__name__]
+            except KeyError:
+                clsobj = create_object(self, cls)
+
+            self._bases.append(clsobj)
+
+        return self._bases
+
+    def get_names(self):
+        try:
+            self._names
+        except AttributeError:
+            self._names = set()
+            for k in self.cls.__dict__:
+                self._names.add(k)
+
+        names = set()
+        names.update(self._names)
+        for cls in self.get_bases():
+            names.update(cls.get_names())
+
+        return names
 
     def op_call(self, args):
         return FakeInstanceObject(self)
 
     def __getitem__(self, name):
+        obj = None
         try:
-            return self._attrs[name]
+            obj = self._attrs[name]
         except KeyError:
-            pass
+            try:
+                attr = self.cls.__dict__[name]
+            except KeyError:
+                for cls in self.get_bases():
+                    try:
+                        obj = cls[name]
+                    except KeyError:
+                        pass
+                    else:
+                        break
+                else:
+                    raise KeyError(name)
+            else:
+                obj = self._attrs[name] = create_object(self, attr, self.node_provider[name])
 
-        cls = self.get_names()[name][0]
-        if cls is self.cls:
-            obj = self._attrs[name] = create_object(self,
-                cls.__dict__[name], self.node_provider[name])
+        if obj:
             return wrap_in_descriptor(self, obj)
-        else:
-            return wrap_in_descriptor(self,
-                self.project.get_module(cls.__module__)[cls.__name__][name])
+
+        raise KeyError(name)
 
     def get_assigned_attributes(self):
-        return {}
+        try:
+            self._assigned_attributes
+        except AttributeError:
+            self._assigned_attributes = {}
+            self.get_names()
+            for name in self._names:
+                obj = self[name]
+                if type(obj) == FunctionObject:
+                    scope = obj.get_scope()
+                    scope.get_names()
+                    if not scope.args:
+                        continue
+
+                    slf = scope.get_name(scope.args[0])
+                    self._assigned_attributes.update(slf.find_attr_assignments())
+
+        result = self._assigned_attributes.copy()
+        for cls in self.get_bases():
+            for attr, value in cls.get_assigned_attributes().iteritems():
+                if attr not in result:
+                    result[attr] = value
+
+        return result
 
 
 class FakeInstanceObject(Object):

@@ -185,6 +185,7 @@ class FakeInstanceObject(Object):
         if name in attrs:
             return wrap_in_method(self, attrs[name].get_object())
 
+        raise KeyError(name)
 
 class InstanceObject(LocationObject):
     def __init__(self, node, obj):

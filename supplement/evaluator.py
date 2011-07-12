@@ -87,6 +87,9 @@ class Dict(Object):
 
 class Evaluator(ast.NodeVisitor):
     def push(self, value):
+        if value is None:
+            raise Exception('Try to push None value')
+
         self.stack.append(value)
 
     def pop(self):
@@ -101,7 +104,13 @@ class Evaluator(ast.NodeVisitor):
     def visit_Attribute(self, node):
         self.visit(node.value)
         obj = self.pop()
-        self.push(obj[node.attr])
+
+        try:
+            value = obj[node.attr]
+        except KeyError:
+            value = UnknownObject()
+
+        self.push(value)
 
     def visit_Str(self, node):
         self.push(create_object(self.scope, node.s))

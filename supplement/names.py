@@ -13,6 +13,11 @@ class Valuable(object):
         return self.value
 
 
+class NodeLocation(object):
+    def get_location(self):
+        return self.node.lineno, self.filename
+
+
 class ModuleName(Object):
     def __init__(self, name, additional=None):
         self.name = name
@@ -94,14 +99,11 @@ class RecursiveCallException(Exception):
         return obj is self.object
 
 
-class FunctionName(Object):
+class FunctionName(NodeLocation, Object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node
         self._calling = False
-
-    def get_location(self):
-        return self.node.lineno, self.filename
 
     def op_call(self, args=[]):
 
@@ -127,7 +129,7 @@ class FunctionName(Object):
         return MethodObject(obj, self)
 
 
-class ClassName(Object):
+class ClassName(NodeLocation, Object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node

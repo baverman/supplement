@@ -1,7 +1,7 @@
 import time
 import pytest
 
-from supplement.assistant import assist, get_location
+from supplement.assistant import assist, get_location, get_context
 
 from .helpers import pytest_funcarg__project, get_source_and_pos
 
@@ -324,3 +324,81 @@ def test_import_package_modules_from_init(project, tmpdir):
 
     result = assist(project, source, pos, str(pkg))
     assert result == ['name']
+
+def test_import_context():
+    source, pos = get_source_and_pos('''
+        import package|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', 'package', None)
+
+    source, pos = get_source_and_pos('''
+        import package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        import package1.module1, package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package2', 'module2', None)
+
+    source, pos = get_source_and_pos('''
+        import (package1.module1,
+            package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, 'package2', 'module2', None)
+
+    source, pos = get_source_and_pos('''
+        import package1.module1, \\
+            package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, 'package2', 'module2', None)
+
+def test_from_context():
+    source, pos = get_source_and_pos('''
+        from package|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', 'package', None)
+
+    source, pos = get_source_and_pos('''
+        from package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from ..package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '..package', 'module', None)
+
+def test_from_import_context():
+    source, pos = get_source_and_pos('''
+        from package import module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from . import module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '.', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from ..package import module1, module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '..package', 'module2', None)
+
+def test_simple_expression_context():
+    source, pos = get_source_and_pos('''
+        module.func(param1, package.param2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'package', 'param2', 'module.func')

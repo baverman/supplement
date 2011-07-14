@@ -1,5 +1,6 @@
-import re
 import logging
+from tokenize import DOT, COMMA, COLON, NAME, NL, NEWLINE, TokenError, generate_tokens, LPAR, untokenize, OP
+from keyword import iskeyword
 
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
@@ -37,112 +38,149 @@ def collect_names(match, names):
 
     return result
 
-def char_is_id(c):
-    return c == '_' or c.isalnum()
+def get_block(source, position):
+    lines = source[:position].splitlines(True)
+    lineno = len(lines) - 1
 
-def find_bracket(br):
-    brks = {')':'(', ']':'[', '}':'{'}
-    def inner(result, source, pos):
-        level = 0
-        consumed = []
-        while pos >= 0:
-            c = source[pos]
-            consumed.append(c)
-            if c == br:
-                level += 1
-            if c == brks[br]:
-                level -= 1
-
-            pos -= 1
-
-            if level == 0:
-                break
+    start = lineno
+    while start > 0:
+        line = lines[start].lstrip()
+        pline = lines[start-1].rstrip()
+        if ( line and line[0] == ',' ) or pline[-1] in ('(', '{', '[', '\\', ','):
+            start -= 1
         else:
-            return None, pos
-
-        [result.insert(0, r) for r in consumed]
-        return find_start, pos
-
-    return inner
-
-def find_id(result, source, pos):
-    while pos >= 0:
-        c = source[pos]
-        if not char_is_id(c):
             break
 
-        result.insert(0, c)
-        pos -= 1
-    else:
-        return None, pos
+    return lines[start:lineno+1], lineno + 1
 
-    return find_start, pos
+class TokenGenerator(object):
+    def __init__(self, lines):
+        it = iter(lines)
+        self.tokens = generate_tokens(it.next)
+        self.onhold = None
 
-def find_start(result, source, pos):
-    if pos < 0:
-        return None, pos
+    def get(self, *tids):
+        tid, value = self.next()
+        if tid not in tids and value not in tids:
+            raise Exception('(%s,%s) not in %s' % (tid, value, tids))
 
-    c = source[pos]
-    if c == '.':
-        result.insert(0, c)
-        return find_start, pos - 1
-    if c in (')', '}', ']'):
-        return find_bracket(c), pos
-    if char_is_id(c):
-        return find_id, pos
+        return tid, value
 
-    return None, pos
+    def hold(self, tid, value):
+        self.onhold = (tid, value)
 
-def get_line(source, lineno):
-    lines = source.splitlines(True)
-    if lineno > len(lines):
-        lineno = len(lines)
+    def skip(self, *tids):
+        tid, value = self.next()
+        if tid not in tids and value not in tids:
+            self.onhold = (tid, value)
+            return False
 
-    return lines[lineno - 1], sum(map(len, lines[:lineno-1]))
+        return True
 
+    def skipmany(self, *tids):
+        while self.skip(*tids):
+            pass
+        else:
+            return False
 
-package_in_from_import_matcher = re.compile('from\s+(.+?)\s+import')
+        return True
+
+    def next(self):
+        if self.onhold:
+            tid, value = self.onhold
+            self.onhold = None
+        else:
+            try:
+                tid, value, _, _, _  = self.tokens.next()
+            except (TokenError, StopIteration):
+                tid, value = 0, ''
+
+        return tid, value
+
+def parse_import(tokens):
+    tokens.skipmany('(', NEWLINE, NL)
+    tid, match = tokens.get(NAME)
+    pks = []
+
+    while True:
+        tid, value = tokens.get(',', '.', NEWLINE, NL, 0)
+        if not tid:
+            break
+        elif value == '.':
+            pks.append(match)
+            match = ''
+            tokens.skipmany(NEWLINE, NL)
+        elif value == ',':
+            pks[:] = []
+            match = ''
+            tokens.skipmany(NEWLINE, NL)
+        else:
+            continue
+
+        tid, value = tokens.get(NAME, 0)
+        if not tid:
+            break
+        else:
+            match = value
+
+    return '.'.join(pks), match
+
+def parse_from(tokens):
+    pks = []
+    match = ''
+    dots = 0
+    while True:
+        tid, value = tokens.next()
+        if value == '.':
+            dots += 1
+        else:
+            break
+
+    tokens.hold(tid, value)
+
+    while True:
+        tid, value = tokens.get(NAME, '.', 0)
+        if not tid: break
+
+        if value == 'import':
+            if match:
+                pks.append(match)
+
+            _, match = parse_import(tokens)
+            break
+        elif value == '.':
+            pks.append(match)
+            match = ''
+        else:
+            match = value
+
+    return '.'*dots + '.'.join(pks), match
+
+def parse_expr(tokens):
+    pass
 
 def get_context(source, position):
-    lineno = source.count('\n', 0, position) + 1
+    lines, lineno = get_block(source, position)
 
-    collected = []
-    position -= 1
-    func, position = find_start(collected, source, position)
+    tokens = TokenGenerator(lines)
 
-    match = ''
-    if func == find_id:
-        func, position = func(collected, source, position)
-        match = ''.join(collected)
-        collected = []
+    ctype, ctx, match, fctx = None, None, None, None
+    while True:
+        tid, value = tokens.next()
+        if tid == NAME:
+            if value == 'import':
+                ctype, fctx = 'import', None
+                ctx, match = parse_import(tokens)
+            elif value == 'from':
+                ctype, fctx = 'import', None
+                ctx, match = parse_from(tokens)
+            else:
+                ctype = 'expr'
+                ctx, match, fctx = parse_expr(tokens)
+        elif not tid:
+            break
 
-    while func:
-        func, position = func(collected, source, position)
-
-    ctx = ''.join(collected)
-    stripped_context = ctx.rstrip('.')
-    if stripped_context:
-        ctx = stripped_context
-
-    line, line_pos = get_line(source, lineno)
-    stripped_line = line.lstrip()
-
-    ctx_type = 'none'
-    if stripped_line.startswith('import'):
-        ctx_type = 'import'
-    elif stripped_line.startswith('from'):
-        import_pos = line.find(' import ')
-        if import_pos >= 0 and line_pos + import_pos + 7 <= position:
-            m = package_in_from_import_matcher.search(line)
-            if m:
-                ctx_type = "from-import"
-                ctx = m.group(1)
-        else:
-            ctx_type = 'from'
-    else:
-        ctx_type = 'eval'
-
-    return ctx_type, lineno, ctx, match
+    return ctype, lineno, ctx, match, fctx
 
 def assist(project, source, position, filename):
     logging.getLogger(__name__).info('assist %s %s', project.root, filename)

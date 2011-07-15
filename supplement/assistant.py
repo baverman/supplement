@@ -1,6 +1,7 @@
 import logging
-from tokenize import NAME, NL, NEWLINE, TokenError, generate_tokens, untokenize, ERRORTOKEN, INDENT, DEDENT
 from keyword import iskeyword
+from tokenize import (NAME, NL, NEWLINE, TokenError, generate_tokens,
+    untokenize, ERRORTOKEN, INDENT, DEDENT)
 
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at

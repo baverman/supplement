@@ -327,6 +327,12 @@ def test_import_package_modules_from_init(project, tmpdir):
 
 def test_import_context():
     source, pos = get_source_and_pos('''
+        import |
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', '', None)
+
+    source, pos = get_source_and_pos('''
         import package|
     ''')
     result = get_context(source, pos)
@@ -382,23 +388,64 @@ def test_from_import_context():
         from package import module|
     ''')
     result = get_context(source, pos)
-    assert result == ('import', 1, 'package', 'module', None)
+    assert result == ('from-import', 1, 'package', 'module', None)
 
     source, pos = get_source_and_pos('''
         from . import module|
     ''')
     result = get_context(source, pos)
-    assert result == ('import', 1, '.', 'module', None)
+    assert result == ('from-import', 1, '.', 'module', None)
 
     source, pos = get_source_and_pos('''
         from ..package import module1, module2|
     ''')
     result = get_context(source, pos)
-    assert result == ('import', 1, '..package', 'module2', None)
+    assert result == ('from-import', 1, '..package', 'module2', None)
 
 def test_simple_expression_context():
+    source, pos = get_source_and_pos('''
+        module.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'module', 'attr', '')
+
     source, pos = get_source_and_pos('''
         module.func(param1, package.param2|
     ''')
     result = get_context(source, pos)
     assert result == ('expr', 1, 'package', 'param2', 'module.func')
+
+def test_expression_context_with_func_ctx_break():
+    source, pos = get_source_and_pos('''
+        module.func(param1, (package.param2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'package', 'param2', '')
+
+def test_expression_without_func_name():
+    source, pos = get_source_and_pos('''
+        (param1, (param2,)).attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, '(param1,(param2,))', 'attr', '')
+
+def test_complex_expression():
+    source, pos = get_source_and_pos('''
+        module.func(param1, (param2,))(p1=10, m.p2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'm', 'p2', 'module.func(param1,(param2,))')
+
+    source, pos = get_source_and_pos('''
+        module.func(param1, (param2,))(p1=10, p2=m.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'm', 'attr', 'module.func(param1,(param2,))')
+
+def test_indeted_import():
+    source, pos = get_source_and_pos('''
+        def foo():
+            import |
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, '', '', None)

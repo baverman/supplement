@@ -172,6 +172,8 @@ def parse_expr(tokens, end=None):
     expr = []
     match = ''
     full = []
+    is_arg = True
+
     while True:
         tid, value = tokens.next()
         if not tid: break
@@ -192,10 +194,15 @@ def parse_expr(tokens, end=None):
                 full.extend(args[0])
                 continue
             elif state == 'stop':
-                if end:
-                    return 'done', (args[0], args[1], expr[:-1])
+                if args[2]:
+                    fctx = expr[:-1]
                 else:
-                    return args[0], args[1], expr[:-1]
+                    fctx = None
+
+                if end:
+                    return 'done', (args[0], args[1], fctx)
+                else:
+                    return args[0], args[1], fctx
             elif state == 'done':
                 if end:
                     return state, args
@@ -205,6 +212,7 @@ def parse_expr(tokens, end=None):
             match = value
             continue
         elif value == '.':
+            is_arg = False
             if match:
                 expr.append((NAME, match))
                 expr.append((tid, value))
@@ -212,13 +220,17 @@ def parse_expr(tokens, end=None):
         else:
             expr[:] = []
             match = ''
+            is_arg = value == ','
 
     if end:
-        return 'stop', (expr, match)
+        return 'stop', (expr, match, is_arg)
 
     return expr, match, []
 
 def prep_tokens(tokens):
+    if not tokens:
+        return ''
+
     result = []
     pos = 0
     for tid, value in tokens:

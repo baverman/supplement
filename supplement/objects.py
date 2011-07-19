@@ -63,6 +63,10 @@ class FunctionObject(LocationObject):
     def as_method_for(self, obj):
         return MethodObject(obj, self)
 
+    def get_signature(self):
+        from inspect import getargspec
+        return (self.func.__name__,) + getargspec(self.func)
+
 
 class DescriptorObject(GetObjectDelegate):
     def __init__(self, owner, obj):

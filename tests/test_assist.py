@@ -410,10 +410,10 @@ def test_simple_expression_context():
     assert result == ('expr', 1, 'module', 'attr', '')
 
     source, pos = get_source_and_pos('''
-        module.func(param1, package.param2|
+        module.func(param1, param2|
     ''')
     result = get_context(source, pos)
-    assert result == ('expr', 1, 'package', 'param2', 'module.func')
+    assert result == ('expr', 1, '', 'param2', 'module.func')
 
 def test_expression_context_with_func_ctx_break():
     source, pos = get_source_and_pos('''
@@ -434,15 +434,15 @@ def test_complex_expression():
         module.func(param1, (param2,))(p1=10, m.p2|
     ''')
     result = get_context(source, pos)
-    assert result == ('expr', 1, 'm', 'p2', 'module.func(param1,(param2,))')
+    assert result == ('expr', 1, 'm', 'p2', '')
 
     source, pos = get_source_and_pos('''
         module.func(param1, (param2,))(p1=10, p2=m.attr|
     ''')
     result = get_context(source, pos)
-    assert result == ('expr', 1, 'm', 'attr', 'module.func(param1,(param2,))')
+    assert result == ('expr', 1, 'm', 'attr', '')
 
-def test_indeted_import():
+def test_indented_import():
     source, pos = get_source_and_pos('''
         def foo():
             import |
@@ -461,3 +461,17 @@ def test_assistant_must_suggest_function_argument_names(project):
     ''')
     assert 'arg1=' in result
     assert 'arg2=' in result
+
+
+    project.create_module('toimport', '''
+        def foo(arg1, arg2):
+            pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.foo(a|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+

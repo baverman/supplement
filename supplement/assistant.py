@@ -215,8 +215,9 @@ def parse_expr(tokens, end=None):
             is_arg = False
             if match:
                 expr.append((NAME, match))
-                expr.append((tid, value))
                 match = ''
+
+            expr.append((tid, value))
         else:
             expr[:] = []
             match = ''

@@ -110,6 +110,10 @@ class MethodObject(GetObjectDelegate):
     def op_call(self, args):
         return self.function.op_call([self.object] + args)
 
+    def get_signature(self):
+        name, args, vararg, kwarg, defaults = self.function.get_signature()
+        return name, args[1:], vararg, kwarg, defaults
+
 
 class ListHolder(GetObjectDelegate):
     def __init__(self, obj, values):

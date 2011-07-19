@@ -173,6 +173,10 @@ class ClassObject(LocationObject):
 
         return result
 
+    def get_signature(self):
+        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
+        return name, args[1:], vararg, kwarg, defaults
+
 
 class FakeInstanceObject(Object):
     def __init__(self, class_obj):

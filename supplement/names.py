@@ -206,6 +206,11 @@ class ClassName(NodeLocation, Object):
 
         return result
 
+    def get_signature(self):
+        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
+        return name, args[1:], vararg, kwarg, defaults
+
+
 class ArgumentName(GetObjectDelegate):
     def __init__(self, scope, index, name):
         self.scope = scope

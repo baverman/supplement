@@ -345,6 +345,12 @@ def test_import_context():
     assert result == ('import', 1, 'package', 'module', None)
 
     source, pos = get_source_and_pos('''
+        import package.module.submodule|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package.module', 'submodule', None)
+
+    source, pos = get_source_and_pos('''
         import package1.module1, package2.module2|
     ''')
     result = get_context(source, pos)
@@ -410,6 +416,12 @@ def test_simple_expression_context():
     assert result == ('expr', 1, 'module', 'attr', '')
 
     source, pos = get_source_and_pos('''
+        package.module.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'package.module', 'attr', '')
+
+    source, pos = get_source_and_pos('''
         module.func(param1, param2|
     ''')
     result = get_context(source, pos)
@@ -441,6 +453,13 @@ def test_complex_expression():
     ''')
     result = get_context(source, pos)
     assert result == ('expr', 1, 'm', 'attr', '')
+
+def test_dotted_func_call_context():
+    source, pos = get_source_and_pos('''
+        Foo().foo(param1|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, '', 'param1', 'Foo().foo')
 
 def test_indented_import():
     source, pos = get_source_and_pos('''
@@ -475,3 +494,86 @@ def test_assistant_must_suggest_function_argument_names(project):
     assert 'arg1=' in result
     assert 'arg2=' in result
 
+def test_assistant_must_suggest_constructor_argument_names(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+def test_assistant_must_suggest_argument_names_for_class_functions(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo.__init__(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo.__init__(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' in result
+
+def test_assistant_must_suggest_argument_names_for_methods(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def foo(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo().foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def foo(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo().foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result

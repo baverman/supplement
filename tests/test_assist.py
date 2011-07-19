@@ -449,3 +449,15 @@ def test_indeted_import():
     ''')
     result = get_context(source, pos)
     assert result == ('import', 2, '', '', None)
+
+def test_assistant_must_suggest_function_argument_names(project):
+    result = do_assist(project, '''
+        def foo(arg1, arg2):
+            pass
+
+        # scope guard
+
+        foo(a|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result

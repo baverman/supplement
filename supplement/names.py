@@ -128,6 +128,11 @@ class FunctionName(NodeLocation, Object):
     def as_method_for(self, obj):
         return MethodObject(obj, self)
 
+    def get_signature(self):
+        self.scope.get_names()
+        args = [self.scope.args[k] for k in sorted(self.scope.args.keys())]
+        return (self.scope.name, args, self.scope.vararg, self.scope.kwarg, self.scope.defaults)
+
 
 class ClassName(NodeLocation, Object):
     def __init__(self, scope, node):

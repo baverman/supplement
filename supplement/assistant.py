@@ -234,7 +234,6 @@ def get_context(source, position):
     ctype, ctx, match, fctx = 'expr', '', '', ''
     while True:
         tid, value = tokens.next()
-        print tid, value
         if not tid: break
 
         if tid == NAME and value == 'import':
@@ -268,6 +267,11 @@ def assist(project, source, position, filename):
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         if not ctx:
             names = get_scope_names(scope, lineno)
+            if fctx:
+                funcobj = infer(fctx, scope, lineno)
+                args = funcobj.get_signature()
+                if args:
+                    names = [(r + '=' for r in args[1])] + list(names)
         else:
             obj = infer(ctx, scope, lineno)
             names = [obj.get_names()]

@@ -32,6 +32,9 @@ class Object(object):
     def get_docstring(self):
         return None
 
+    def get_signature(self):
+        return None
+
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -63,6 +66,9 @@ class GetObjectDelegate(object):
 
     def get_docstring(self):
         return self.get_object().get_docstring()
+
+    def get_signature(self):
+        return self.get_object().get_signature()
 
 
 class UnknownObject(Object): pass

@@ -9,10 +9,22 @@ from .scope import Scope
 
 from watcher import monitor
 
+def override_fs(project, module):
+    name = module.name
+    for path in project.override:
+        fname = join(path, name + '.py')
+        if exists(fname):
+            module = OverrideModule(project, module, fname)
+
+    return module
 
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
+        self.override = [override_fs]
+
+    def add_override(self, override):
+        self.override.append(override)
 
     def on_file_change(self, filename, module_name):
         try:
@@ -34,11 +46,8 @@ class ModuleProvider(object):
             pass
 
         m = Module(project, name)
-
-        for path in project.override:
-            fname = join(path, name + '.py')
-            if exists(fname):
-                m = OverrideModule(project, m, fname)
+        for o in self.override:
+            m = o(project, m)
 
         self.cache[name] = m
 

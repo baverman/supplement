@@ -23,6 +23,9 @@ class Project(object):
 
         self.override = [join(dirname(__file__), 'override')]
 
+        for h in self.config.get('hooks', []):
+            self.register_hook(h)
+
     def _refresh_paths(self):
         self.sources = []
         self.paths = []

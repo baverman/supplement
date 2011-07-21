@@ -1,5 +1,3 @@
-from supplement.assistant import assist
-
 from .helpers import pytest_funcarg__project, do_assist
 
 def test_eval_of_os_path_abspath(project):

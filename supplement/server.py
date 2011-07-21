@@ -5,6 +5,7 @@ from supplement.project import Project
 from supplement.assistant import assist, get_location
 from supplement.scope import get_scope_at
 from supplement.watcher import get_monitor
+from supplement.fixer import sanitize_encoding
 
 class Server(object):
     def __init__(self, conn):
@@ -50,7 +51,8 @@ class Server(object):
 
     def get_scope(self, path, source, lineno, filename, continous):
         return get_scope_at(
-            self.get_project(path), source, lineno, filename, continous=continous).fullname
+            self.get_project(path), sanitize_encoding(source), lineno,
+                filename, continous=continous).fullname
 
     def run(self):
         conn = self.conn

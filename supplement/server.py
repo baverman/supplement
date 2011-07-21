@@ -4,20 +4,21 @@ from cPickle import loads, dumps
 from supplement.project import Project
 from supplement.assistant import assist, get_location
 from supplement.scope import get_scope_at
-
+from supplement.watcher import get_monitor
 
 class Server(object):
     def __init__(self, conn):
         self.conn = conn
         self.projects = {}
         self.configs = {}
+        self.monitor = get_monitor()
 
     def configure_project(self, path, config):
         self.configs[path] = config
         self.projects[path] = self.create_project(path)
 
     def create_project(self, path):
-        return Project(path, self.configs.get(path, {}))
+        return Project(path, self.configs.get(path, {}), monitor=self.monitor)
 
     def get_project(self, path):
         try:

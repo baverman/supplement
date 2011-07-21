@@ -1,13 +1,7 @@
-import pytest
-import time
-import os.path
+from supplement.watcher import DummyMonitor
 
-from supplement import watcher
-
-@pytest.mark.slow
 def test_watcher_must_call_uniq_handlers_on_file_change(tmpdir):
-    f = tmpdir.join('test.py')
-    f.write('content')
+    fname = 'test.py'
 
     # Wrap list with hashable object
     class Holder(object):
@@ -23,22 +17,19 @@ def test_watcher_must_call_uniq_handlers_on_file_change(tmpdir):
     changed1 = Holder()
     changed2 = Holder()
 
-    watcher.monitor(str(f), on_change, changed1)
-    watcher.monitor(str(f), on_change, changed1)
-    watcher.monitor(str(f), on_change, changed2)
-    watcher.monitor(str(f), change_on, changed2)
+    watcher = DummyMonitor()
+    watcher.monitor(fname, on_change, changed1)
+    watcher.monitor(fname, on_change, changed1)
+    watcher.monitor(fname, on_change, changed2)
+    watcher.monitor(fname, change_on, changed2)
 
-    time.sleep(1)
-    f.write('ddddddd')
-    time.sleep(5.5)
+    watcher.boo()
 
-    assert changed1.data == [str(f)]
-    assert changed2.data == [str(f), str(f)]
+    assert changed1.data == [fname]
+    assert changed2.data == [fname, fname]
 
-@pytest.mark.slow
-def test_watcher_must_call_uniq_method_handlers_on_file_change(tmpdir):
-    f = tmpdir.join('test.py')
-    f.write('content')
+def test_watcher_must_call_uniq_method_handlers_on_file_change():
+    fname = 'test.py'
 
     class Handler(object):
         def __init__(self):
@@ -50,13 +41,11 @@ def test_watcher_must_call_uniq_method_handlers_on_file_change(tmpdir):
     h1 = Handler()
     h2 = Handler()
 
-    watcher.monitor(str(f), h1.on_change)
-    watcher.monitor(str(f), h1.on_change)
-    watcher.monitor(str(f), h2.on_change)
+    watcher = DummyMonitor()
+    watcher.monitor(fname, h1.on_change)
+    watcher.monitor(fname, h1.on_change)
+    watcher.monitor(fname, h2.on_change)
+    watcher.boo()
 
-    time.sleep(1)
-    f.write('ddddddd')
-    time.sleep(5.5)
-
-    assert h1.changed == [str(f)]
-    assert h2.changed == [str(f)]
+    assert h1.changed == [fname]
+    assert h2.changed == [fname]

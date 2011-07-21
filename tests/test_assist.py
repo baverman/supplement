@@ -1,5 +1,5 @@
-import time
 import pytest
+import time
 
 from supplement.assistant import assist, get_location, get_context
 
@@ -251,7 +251,7 @@ def test_assist_for_names_in_changed_module(project, tmpdir):
 
     time.sleep(1)
     m.write('name1 = 1\nname2 = 2')
-    time.sleep(5.5)
+    project.monitor.boo()
 
     result = get_result()
     assert result == ['name1', 'name2']

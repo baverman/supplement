@@ -5,7 +5,6 @@ import gobject
 from supplement.names import ClassName
 from supplement.objects import FakeInstanceObject
 from supplement.common import ClassProxy, Object
-from supplement.watcher import monitor
 
 pydoc_glade_file_matcher = re.compile('(?m)^.*glade-file\s*:(.*)$')
 
@@ -51,7 +50,7 @@ class GladeModuleProvider(object):
             pass
 
         m = self.cache[name] = GladeModule(project, name)
-        monitor(name, self.on_file_change, name)
+        project.monitor.monitor(name, self.on_file_change, name)
         return m
 
 

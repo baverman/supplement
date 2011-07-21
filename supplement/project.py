@@ -4,12 +4,15 @@ import logging
 
 from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
+from .watcher import DummyMonitor
 
 class Project(object):
-    def __init__(self, root, config=None):
+    def __init__(self, root, config=None, monitor=None):
         self.root = root
         self.config = config or {}
         self._refresh_paths()
+
+        self.monitor = monitor or DummyMonitor()
 
         self.ast_provider = AstProvider()
         self.module_providers = {

@@ -7,8 +7,6 @@ from .objects import create_object
 from .tree import NodeProvider
 from .scope import Scope
 
-from watcher import monitor
-
 def override_fs(project, module):
     name = module.name
     for path in project.override:
@@ -53,7 +51,7 @@ class ModuleProvider(object):
 
         filename = m.filename
         if filename:
-            monitor(filename, self.on_file_change, name)
+            project.monitor.monitor(filename, self.on_file_change, name)
 
         return m
 

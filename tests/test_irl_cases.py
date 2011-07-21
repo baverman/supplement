@@ -2,13 +2,6 @@ from supplement.assistant import assist
 
 from .helpers import pytest_funcarg__project, do_assist
 
-def test_assist_for_watcher_raises_KeyError(project):
-    result = do_assist(project, '''
-        from supplement import watcher
-        watcher.''')
-
-    assert 'monitor' in result
-
 def test_eval_of_os_path_abspath(project):
     result = do_assist(project, '''
         from os.path import abspath

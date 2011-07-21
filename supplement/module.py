@@ -5,12 +5,24 @@ import logging
 
 from .objects import create_object
 from .tree import NodeProvider
-from .watcher import monitor
+from .scope import Scope
 
+def override_fs(project, module):
+    name = module.name
+    for path in project.override:
+        fname = join(path, name + '.py')
+        if exists(fname):
+            module = OverrideModule(project, module, fname)
+
+    return module
 
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
+        self.override = [override_fs]
+
+    def add_override(self, override):
+        self.override.append(override)
 
     def on_file_change(self, filename, module_name):
         try:
@@ -22,8 +34,8 @@ class ModuleProvider(object):
             m = self.cache[module_name]
         except KeyError:
             pass
-
-        m.invalidate()
+        else:
+            m.invalidate()
 
     def get(self, project, name):
         try:
@@ -31,11 +43,15 @@ class ModuleProvider(object):
         except KeyError:
             pass
 
-        m = self.cache[name] = Module(project, name)
+        m = Module(project, name)
+        for o in self.override:
+            m = o(project, m)
+
+        self.cache[name] = m
 
         filename = m.filename
         if filename:
-            monitor(filename, self.on_file_change, name)
+            project.monitor.monitor(filename, self.on_file_change, name)
 
         return m
 
@@ -214,11 +230,10 @@ class Module(object):
         if not node:
             self._scope = scope = None
         else:
-            from .scope import Scope
-
-            self._scope = scope = Scope(node, '', None, 'module')
+            self._scope = scope = DynScope(node, '', None, 'module')
             scope.project = self.project
             scope.filename = self.filename
+            scope.module = self
 
         return scope
 
@@ -228,3 +243,50 @@ class Module(object):
             return None
 
         return scope.get_scope_at(self.get_source(), lineno)
+
+    def get_docstring(self):
+        return None
+
+class DynScope(Scope):
+    def get_name(self, name, lineno=None):
+        if lineno is None:
+            try:
+                return self.module[name]
+            except KeyError:
+                pass
+
+        return Scope.get_name(self, name, lineno)
+
+class OverrideModule(Module):
+    def __init__(self, project, module, filename):
+        Module.__init__(self, project, module.name)
+        self._filename = filename
+        self.overrided_module = module
+
+    @property
+    def module(self):
+        try:
+            return self._module
+        except AttributeError:
+            pass
+
+        import imp
+        logging.getLogger(__name__).info('Try to override %s from %s', self.name, self._filename)
+        self._module = imp.new_module(self.name)
+        self._module.__orig__ = self.overrided_module.module
+        execfile(self._filename, self._module.__dict__)
+
+        return self._module
+
+    @property
+    def filename(self):
+        return self._filename
+
+    def get_names(self):
+        return Module.get_names(self).union(self.overrided_module.get_names())
+
+    def __getitem__(self, name):
+        try:
+            return Module.__getitem__(self, name)
+        except KeyError:
+            return self.overrided_module[name]

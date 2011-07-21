@@ -1,7 +1,8 @@
+import logging
 from types import FunctionType, ModuleType
 
 from .tree import CtxNodeProvider
-from .common import Object, GetObjectDelegate
+from .common import Object, GetObjectDelegate, MethodObject
 
 def dir_top(obj):
     try:
@@ -48,26 +49,23 @@ class FunctionObject(LocationObject):
         LocationObject.__init__(self, node)
         self.func = func
 
-    def op_call(self, args):
+    def get_scope(self):
         module = self.project.get_module(self.func.__module__)
-        scope = module.get_scope_at(self.func.__code__.co_firstlineno)
+        return module.get_scope_at(self.func.func_code.co_firstlineno)
 
+    def op_call(self, args):
+        scope = self.get_scope()
         if scope:
             return scope.function.op_call(args)
         else:
             return Object(None)
 
+    def as_method_for(self, obj):
+        return MethodObject(obj, self)
 
-class MethodObject(GetObjectDelegate):
-    def __init__(self, obj, func_obj):
-        self.object = obj
-        self.function = func_obj
-
-    def get_object(self):
-        return self.function
-
-    def op_call(self, args):
-        return self.function.op_call([self.object] + args)
+    def get_signature(self):
+        from inspect import getargspec
+        return (self.func.__name__,) + getargspec(self.func)
 
 
 class DescriptorObject(GetObjectDelegate):
@@ -89,46 +87,95 @@ class ClassObject(LocationObject):
         self._attrs = {}
         self.node_provider = CtxNodeProvider(self, self.node[-1])
 
-    def collect_names(self, cls, names, collected_classes, level):
-        for k in cls.__dict__:
-            if k not in names or names[k][1] > level:
-                names[k] = cls, level
-
-        collected_classes.add(cls)
-        for cls in cls.__bases__:
-            if cls not in collected_classes:
-                self.collect_names(cls, names, collected_classes, level + 1)
-
-    def get_names(self):
+    def get_bases(self):
         try:
-            return self._names
+            return self._bases
         except AttributeError:
             pass
 
-        self._names = {}
-        self.collect_names(self.cls, self._names, set(), 0)
-        return self._names
+        self._bases = []
+        for cls in self.cls.__bases__:
+            module = self.project.get_module(cls.__module__)
+            try:
+                clsobj = module[cls.__name__]
+            except KeyError:
+                clsobj = create_object(self, cls)
+
+            self._bases.append(clsobj)
+
+        return self._bases
+
+    def get_names(self):
+        try:
+            self._names
+        except AttributeError:
+            self._names = set()
+            for k in self.cls.__dict__:
+                self._names.add(k)
+
+        names = set()
+        names.update(self._names)
+        for cls in self.get_bases():
+            names.update(cls.get_names())
+
+        return names
 
     def op_call(self, args):
         return FakeInstanceObject(self)
 
     def __getitem__(self, name):
+        obj = None
         try:
-            return self._attrs[name]
+            obj = self._attrs[name]
         except KeyError:
-            pass
+            try:
+                attr = self.cls.__dict__[name]
+            except KeyError:
+                for cls in self.get_bases():
+                    try:
+                        obj = cls[name]
+                    except KeyError:
+                        pass
+                    else:
+                        break
+                else:
+                    raise KeyError(name)
+            else:
+                obj = self._attrs[name] = create_object(self, attr, self.node_provider[name])
 
-        cls = self.get_names()[name][0]
-        if cls is self.cls:
-            obj = self._attrs[name] = create_object(self,
-                cls.__dict__[name], self.node_provider[name])
+        if obj:
             return wrap_in_descriptor(self, obj)
-        else:
-            return wrap_in_descriptor(self,
-                self.project.get_module(cls.__module__)[cls.__name__][name])
+
+        raise KeyError(name)
 
     def get_assigned_attributes(self):
-        return {}
+        try:
+            self._assigned_attributes
+        except AttributeError:
+            self._assigned_attributes = {}
+            self.get_names()
+            for name in self._names:
+                obj = self[name]
+                if type(obj) == FunctionObject:
+                    scope = obj.get_scope()
+                    scope.get_names()
+                    if not scope.args:
+                        continue
+
+                    slf = scope.get_name(scope.args[0])
+                    self._assigned_attributes.update(slf.find_attr_assignments())
+
+        result = self._assigned_attributes.copy()
+        for cls in self.get_bases():
+            for attr, value in cls.get_assigned_attributes().iteritems():
+                if attr not in result:
+                    result[attr] = value
+
+        return result
+
+    def get_signature(self):
+        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
+        return name, args[1:], vararg, kwarg, defaults
 
 
 class FakeInstanceObject(Object):
@@ -139,13 +186,14 @@ class FakeInstanceObject(Object):
         return set(self._class.get_names()).union(set(self._class.get_assigned_attributes()))
 
     def __getitem__(self, name):
-        if name in self._class.get_names():
-            return wrap_in_method(self, self._class[name])
-
         attrs = self._class.get_assigned_attributes()
         if name in attrs:
             return wrap_in_method(self, attrs[name].get_object())
 
+        if name in self._class.get_names():
+            return wrap_in_method(self, self._class[name])
+
+        raise KeyError(name)
 
 class InstanceObject(LocationObject):
     def __init__(self, node, obj):
@@ -196,7 +244,14 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        return create_object(self, self.obj[idx.get_value()])
+        idx = idx.get_value()
+        try:
+            value = self.obj[idx]
+        except Exception, e:
+            logging.getLogger(__name__).error(e)
+            return Object()
+
+        return create_object(self, value)
 
     def get_value(self):
         return self.obj
@@ -210,15 +265,15 @@ class InstanceObject(LocationObject):
 
 
 def wrap_in_method(obj, attr):
-    if type(attr) is FunctionObject:
-        return MethodObject(obj, attr)
-
-    return attr
+    try:
+        return attr.as_method_for(obj)
+    except AttributeError:
+        return attr
 
 def wrap_in_descriptor(obj, attr):
     if isinstance(attr, DescriptorObject):
         attr.owner = obj
-    elif not isinstance(attr, FunctionObject) and attr.is_descriptor():
+    elif not getattr(attr, 'as_method_for', None) and attr.is_descriptor():
         return DescriptorObject(obj, attr)
 
     return attr

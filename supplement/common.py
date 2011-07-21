@@ -2,6 +2,7 @@ import logging
 
 class Object(object):
     def get_location(self):
+        raise NotImplementedError()
         return None, None
 
     def get_names(self):
@@ -11,7 +12,7 @@ class Object(object):
         return name in self.get_names()
 
     def __getitem__(self, name):
-        raise KeyError(name)
+        return UnknownObject()
 
     def op_call(self, *args):
         return UnknownObject()
@@ -27,6 +28,12 @@ class Object(object):
 
     def get_assigned_attributes(self):
         return {}
+
+    def get_docstring(self):
+        return None
+
+    def get_signature(self):
+        return None
 
 
 class GetObjectDelegate(object):
@@ -57,8 +64,15 @@ class GetObjectDelegate(object):
     def get_assigned_attributes(self):
         return self.get_object().get_assigned_attributes()
 
+    def get_docstring(self):
+        return self.get_object().get_docstring()
+
+    def get_signature(self):
+        return self.get_object().get_signature()
+
 
 class UnknownObject(Object): pass
+class NoneObject(Object): pass
 
 
 class Value(object):
@@ -74,3 +88,49 @@ class Value(object):
 
         self._object = self.scope.eval(self.value, False)
         return self._object
+
+
+class ClassProxy(GetObjectDelegate):
+    def __init__(self, project, module_name, class_name):
+        self.class_name = class_name
+        self.module_name = module_name
+        self.project = project
+
+    def get_object(self):
+        return self.project.get_module(self.module_name)[self.class_name]
+
+
+class GetObjectable(object):
+    def __init__(self, obj):
+        self.object = obj
+
+    def get_object(self):
+        return self.object
+
+
+class MethodObject(GetObjectDelegate):
+    def __init__(self, obj, func_obj):
+        self.object = obj
+        self.function = func_obj
+
+    def get_object(self):
+        return self.function
+
+    def op_call(self, args):
+        return self.function.op_call([self.object] + args)
+
+    def get_signature(self):
+        name, args, vararg, kwarg, defaults = self.function.get_signature()
+        return name, args[1:], vararg, kwarg, defaults
+
+
+class ListHolder(GetObjectDelegate):
+    def __init__(self, obj, values):
+        self.values = values
+        self.object = obj
+
+    def get_object(self):
+        return self.object
+
+    def op_getitem(self, idx):
+        return self.values[idx.get_value()]

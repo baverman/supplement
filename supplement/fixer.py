@@ -25,7 +25,7 @@ def force_byte_string(source):
     else:
         return source
 
-def fix(code, tries=4):
+def fix(code, tries=10):
     try:
         return ast.parse(code), code
     except IndentationError as e:
@@ -34,7 +34,7 @@ def fix(code, tries=4):
 
         code = code.splitlines()
         result = []
-        for i, l in reversed(list(enumerate(code[:e.lineno - 1]))):
+        for i, l in reversed(list(enumerate(code[:e.lineno]))):
             if l.strip():
                 result.extend(code[:i])
                 result.append(l + ' pass')
@@ -48,7 +48,7 @@ def fix(code, tries=4):
         code = code.splitlines()
 
         if e.text.strip().startswith('except '):
-            code[e.lineno - 1] = code[e.lineno - 1][:e.offset] + ':'
+            code[e.lineno - 1] = code[e.lineno - 1][:e.offset] + ': pass'
             result = code
         else:
             level = get_ws_len(code[e.lineno - 1])

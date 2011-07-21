@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from supplement.fixer import fix, sanitize_encoding
-from supplement.assistant import assist
 
-from .helpers import pytest_funcarg__project, get_source_and_pos
-
-def do_assist(project, source, filename=None):
-    filename = filename or 'test.py'
-    source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
+from .helpers import pytest_funcarg__project, do_assist, cleantabs
 
 def test_encoding_sanitization():
     tree, source = fix(sanitize_encoding('# coding: utf-8\n\n\n"вау"'))
@@ -23,3 +17,18 @@ def test_not_closed_except(project):
     ''')
 
     assert result == ['AttributeError']
+
+def test_glued_indent():
+    source = cleantabs('''
+        import toimport
+
+        if True:
+            toimport(
+    ''')
+
+    tree, source = fix(source)
+    expected_source = cleantabs('''
+        import toimport
+
+        if True: pass''')
+    assert source == expected_source

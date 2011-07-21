@@ -1,20 +1,4 @@
-import pytest
-
-from supplement.assistant import assist
-
-from .helpers import pytest_funcarg__project, get_source_and_pos
-
-def do_assist(project, source, filename=None):
-    filename = filename or 'test.py'
-    source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
-
-def test_assist_for_watcher_raises_KeyError(project):
-    result = do_assist(project, '''
-        from supplement import watcher
-        watcher.''')
-
-    assert 'monitor' in result
+from .helpers import pytest_funcarg__project, do_assist
 
 def test_eval_of_os_path_abspath(project):
     result = do_assist(project, '''
@@ -38,3 +22,21 @@ def test_assist_for_gtk_class_properties(project):
         gtk.Window.props.''')
 
     assert 'has_focus' in result
+
+def test_logging_getLogger(project):
+    result = do_assist(project, '''
+        import logging
+        logging.getLogger(__name__).|
+    ''')
+
+    assert 'exception' in result
+
+def test_unclosed_bracket_indented_assist(project):
+    result = do_assist(project, '''
+        import sys
+
+        if True:
+            len(sy|
+    ''')
+
+    assert 'sys' in result

@@ -1,15 +1,23 @@
-import re
 import logging
+from keyword import iskeyword
+from tokenize import (NAME, NL, NEWLINE, TokenError, generate_tokens,
+    untokenize, ERRORTOKEN, INDENT, DEDENT)
 
 from .fixer import fix, sanitize_encoding
 from .scope import get_scope_at
 from .evaluator import infer
 
 def get_scope_names(scope, lineno=None):
+    inject_bases = scope.type == 'class'
     project = scope.project
     while scope:
         yield scope.get_names(lineno)
         lineno = None
+
+        if inject_bases:
+            inject_bases = False
+            yield scope.cls.get_names()
+
         scope = scope.parent
 
     m = project.get_module('builtins')
@@ -31,154 +39,282 @@ def collect_names(match, names):
 
     return result
 
-def char_is_id(c):
-    return c == '_' or c.isalnum()
+def get_block(source, position):
+    lines = source[:position].splitlines(True)
+    lineno = len(lines) - 1
 
-def find_bracket(br):
-    brks = {')':'(', ']':'[', '}':'{'}
-    def inner(result, source, pos):
-        level = 0
-        consumed = []
-        while pos >= 0:
-            c = source[pos]
-            consumed.append(c)
-            if c == br:
-                level += 1
-            if c == brks[br]:
-                level -= 1
-
-            pos -= 1
-
-            if level == 0:
-                break
+    start = lineno
+    while start > 0:
+        line = lines[start].lstrip()
+        pline = lines[start-1].rstrip()
+        if ( line and line[0] == ',' ) or not pline or pline[-1] in ('(', '{', '[', '\\', ','):
+            start -= 1
         else:
-            return None, pos
-
-        [result.insert(0, r) for r in consumed]
-        return find_start, pos
-
-    return inner
-
-def find_id(result, source, pos):
-    while pos >= 0:
-        c = source[pos]
-        if not char_is_id(c):
             break
 
-        result.insert(0, c)
-        pos -= 1
-    else:
-        return None, pos
+    return lines[start:lineno+1], lineno + 1
 
-    return find_start, pos
+class TokenGenerator(object):
+    def __init__(self, lines):
+        it = iter(lines)
+        self.tokens = generate_tokens(it.next)
+        self.onhold = None
 
-def find_start(result, source, pos):
-    if pos < 0:
-        return None, pos
+    def get(self, *tids):
+        tid, value = self.next()
+        if tid not in tids and value not in tids:
+            raise Exception('(%s,%s) not in %s' % (tid, value, tids))
 
-    c = source[pos]
-    if c == '.':
-        result.insert(0, c)
-        return find_start, pos - 1
-    if c in (')', '}', ']'):
-        return find_bracket(c), pos
-    if char_is_id(c):
-        return find_id, pos
+        return tid, value
 
-    return None, pos
+    def hold(self, tid, value):
+        self.onhold = (tid, value)
 
-def get_line(source, lineno):
-    lines = source.splitlines(True)
-    if lineno > len(lines):
-        lineno = len(lines)
+    def skip(self, *tids):
+        tid, value = self.next()
+        if tid not in tids and value not in tids:
+            self.onhold = (tid, value)
+            return False
 
-    return lines[lineno - 1], sum(map(len, lines[:lineno-1]))
+        return True
 
+    def skipmany(self, *tids):
+        while self.skip(*tids):
+            pass
+        else:
+            return False
 
-package_in_from_import_matcher = re.compile('from\s+(.+?)\s+import')
+        return True
+
+    SPACES = set((NL, NEWLINE, ERRORTOKEN, INDENT, DEDENT))
+    def next(self):
+        if self.onhold:
+            tid, value = self.onhold
+            self.onhold = None
+        else:
+            try:
+                tid = NL
+                while tid in self.SPACES:
+                    tid, value, _, _, _  = self.tokens.next()
+            except (TokenError, StopIteration):
+                tid, value = 0, ''
+
+        return tid, value
+
+def parse_import(tokens):
+    tokens.skip('(')
+    tid, match = tokens.get(NAME, 0)
+    pks = []
+
+    if not tid:
+        return '', ''
+
+    while True:
+        tid, value = tokens.get(',', '.', 0)
+        if not tid:
+            break
+        elif value == '.':
+            pks.append(match)
+            match = ''
+        elif value == ',':
+            pks[:] = []
+            match = ''
+        else:
+            continue
+
+        tid, value = tokens.get(NAME, 0)
+        if not tid:
+            break
+        else:
+            match = value
+
+    return '.'.join(pks), match
+
+def parse_from(tokens):
+    ctype = 'import'
+    pks = []
+    match = ''
+    dots = 0
+    while True:
+        tid, value = tokens.next()
+        if value == '.':
+            dots += 1
+        else:
+            break
+
+    tokens.hold(tid, value)
+    while True:
+        tid, value = tokens.get(NAME, '.', 0)
+        if not tid: break
+
+        if value == 'import':
+            if match:
+                pks.append(match)
+
+            _, match = parse_import(tokens)
+            ctype = 'from-import'
+            break
+        elif value == '.':
+            pks.append(match)
+            match = ''
+        else:
+            match = value
+
+    return ctype, '.'*dots + '.'.join(pks), match
+
+BRACKETS = {
+ '(':')',
+ '{':'}',
+ '[':']'
+}
+
+def parse_expr(tokens, end=None):
+    expr = []
+    match = ''
+    full = []
+    is_arg = True
+
+    while True:
+        tid, value = tokens.next()
+        if not tid: break
+        full.append((tid, value))
+
+        if end and value == end:
+            return 'full', (full,)
+
+        if value in ('(', '{', '['):
+            if match:
+                expr.append((NAME, match))
+                match = ''
+
+            expr.append((tid, value))
+            state, args = parse_expr(tokens, BRACKETS[value])
+            if state == 'full':
+                expr.extend(args[0])
+                full.extend(args[0])
+                continue
+            elif state == 'stop':
+                if args[2]:
+                    fctx = expr[:-1]
+                else:
+                    fctx = None
+
+                if end:
+                    return 'done', (args[0], args[1], fctx)
+                else:
+                    return args[0], args[1], fctx
+            elif state == 'done':
+                if end:
+                    return state, args
+                else:
+                    return args
+        elif tid == NAME and not iskeyword(value):
+            match = value
+            continue
+        elif value == '.':
+            is_arg = False
+            if match:
+                expr.append((NAME, match))
+                match = ''
+
+            expr.append((tid, value))
+        else:
+            expr[:] = []
+            match = ''
+            is_arg = value == ','
+
+    if end:
+        return 'stop', (expr, match, is_arg)
+
+    return expr, match, []
+
+def prep_tokens(tokens):
+    if not tokens:
+        return ''
+
+    result = []
+    pos = 0
+    for tid, value in tokens:
+        newpos = pos + len(value)
+        result.append((tid, value, (1, pos), (1, newpos), ''))
+
+    return result
 
 def get_context(source, position):
-    lineno = source.count('\n', 0, position) + 1
+    lines, lineno = get_block(source, position)
 
-    collected = []
-    position -= 1
-    func, position = find_start(collected, source, position)
+    tokens = TokenGenerator(lines)
+    ctype, ctx, match, fctx = 'expr', '', '', ''
+    while True:
+        tid, value = tokens.next()
+        if not tid: break
 
-    match = ''
-    if func == find_id:
-        func, position = func(collected, source, position)
-        match = ''.join(collected)
-        collected = []
+        if tid == NAME and value == 'import':
+            ctype, fctx = 'import', None
+            ctx, match = parse_import(tokens)
 
-    while func:
-        func, position = func(collected, source, position)
+        elif tid == NAME and value == 'from':
+            fctx = None
+            ctype, ctx, match = parse_from(tokens)
 
-    ctx = ''.join(collected)
-    stripped_context = ctx.rstrip('.')
-    if stripped_context:
-        ctx = stripped_context
+        elif tid == NAME or value in BRACKETS.keys():
+            ctype = 'expr'
+            tokens.hold(tid, value)
+            ctx, match, fctx = parse_expr(tokens)
+            ctx = untokenize(prep_tokens(ctx)).strip().rstrip('.')
+            fctx = untokenize(prep_tokens(fctx)).strip().rstrip('.')
 
-    line, line_pos = get_line(source, lineno)
-    stripped_line = line.lstrip()
-
-    ctx_type = 'none'
-    if stripped_line.startswith('import'):
-        ctx_type = 'import'
-    elif stripped_line.startswith('from'):
-        import_pos = line.find(' import ')
-        if import_pos >= 0 and line_pos + import_pos + 7 <= position:
-            m = package_in_from_import_matcher.search(line)
-            if m:
-                ctx_type = "from-import"
-                ctx = m.group(1)
         else:
-            ctx_type = 'from'
-    else:
-        ctx_type = 'eval'
+            ctype, ctx, match, fctx = 'expr', '', '', ''
 
-    return ctx_type, lineno, ctx, match
+    return ctype, lineno, ctx, match, fctx
 
 def assist(project, source, position, filename):
     logging.getLogger(__name__).info('assist %s %s', project.root, filename)
-    ctx_type, lineno, ctx, match = get_context(source, position)
+    ctx_type, lineno, ctx, match, fctx = get_context(source, position)
 
-    if ctx_type == 'eval':
+    if ctx_type == 'expr':
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
 
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         if not ctx:
             names = get_scope_names(scope, lineno)
+            if fctx:
+                funcobj = infer(fctx, scope, lineno)
+                args = funcobj.get_signature()
+                if args:
+                    names = [(r + '=' for r in args[1])] + list(names)
         else:
             obj = infer(ctx, scope, lineno)
             names = [obj.get_names()]
     elif ctx_type == 'import':
         names = (project.get_possible_imports(ctx, filename),)
-    elif ctx_type == 'from':
-        names = (project.get_possible_imports(ctx, filename),)
     elif ctx_type == 'from-import':
         names = (
             project.get_module(ctx, filename).get_names(),
             project.get_possible_imports(ctx, filename))
-    elif ctx_type == 'none':
+    elif ctx_type is None:
         return []
 
     return collect_names(match, names)
+
+def char_is_id(c):
+    return c == '_' or c.isalnum()
 
 def get_location(project, source, position, filename):
     source_len = len(source)
     while position < source_len and char_is_id(source[position]):
         position += 1
 
-    ctx_type, lineno, ctx, match = get_context(source, position)
+    ctx_type, lineno, ctx, match, fctx = get_context(source, position)
 
-    if ctx_type == 'eval':
+    if ctx_type == 'expr':
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)
-
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         if not ctx:
-            obj = scope.get_name(match, lineno)
+            obj = scope.find_name(match, lineno)
         else:
             obj = infer(ctx, scope, lineno)[match]
     else:

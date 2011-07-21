@@ -1,8 +1,10 @@
 import ast
+import logging
 
 from .evaluator import Evaluator
-from .names import NameExtractor, create_name, ArgumentName
+from .names import NameExtractor, create_name, ArgumentName, VarargName
 from .names import ClassName, FunctionName, ImportedName
+from .common import ListHolder
 
 def traverse_tree(root):
     yield root
@@ -66,6 +68,9 @@ class Scope(object):
         else:
             self.fullname = name
 
+    def __repr__(self):
+        return '<Scope %s %s %s>' % (self.type, self.fullname, self.filename)
+
     def get_lineno(self):
         try:
             return self.node.lineno
@@ -93,7 +98,7 @@ class Scope(object):
             if c.get_lineno() == lineno:
                 return c
 
-        raise KeyError('lineno: ' + lineno)
+        raise KeyError('lineno: %d' % lineno)
 
     def get_names(self, lineno=None):
         try:
@@ -106,7 +111,12 @@ class Scope(object):
                     self._names[name].sort(reverse=True)
 
             for target, idx, value in sassigns:
-                self.eval(target, False).op_setitem(self.eval(idx, False), self.eval(value, False))
+                t = self.eval(target, False)
+                if t:
+                    t.op_setitem(self.eval(idx, False), self.eval(value, False))
+                else:
+                    logging.getLogger(__name__).error(
+                        "Can't eval target on subscript assign %s %s", self.filename, vars(target))
 
         if lineno is None:
             return self._names
@@ -132,8 +142,8 @@ class Scope(object):
                 node_names = self._names[name]
 
             names = self._attrs[name] = []
-            for line, node in node_names:
-                names.append((line, create_name(node, self)))
+            for line, node in reversed(node_names):
+                names.insert(0, (line, create_name(node, self)))
 
         if lineno is None:
             return names[0][1]
@@ -201,6 +211,9 @@ class CallScope(object):
         self.project = parent.project
         self.filename = parent.filename
 
+    def __repr__(self):
+        return '<CallScope %s %s>' % (self.fullname, self.filename)
+
     def get_names(self):
         return self.parent.get_names()
 
@@ -218,7 +231,13 @@ class CallScope(object):
     def get_name(self, name, lineno=None):
         obj = self.parent.get_name(name, lineno)
         if isinstance(obj, ArgumentName):
-            return self.args[obj.index]
+            try:
+                return self.args[obj.index]
+            except IndexError:
+                return self.parent.defaults[obj.index - len(self.args)].get_object()
+
+        if isinstance(obj, VarargName):
+            return ListHolder(obj, self.args[len(self.parent.args):])
 
         return obj
 
@@ -266,6 +285,9 @@ class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         scope = Scope(node, node.name, self.scope, 'func')
         scope.args = {}
+        scope.defaults = []
+        scope.vararg = None
+        scope.kwarg = None
         scope.function = create_name((FunctionName, scope, node), scope)
         self.children.append(scope)
 

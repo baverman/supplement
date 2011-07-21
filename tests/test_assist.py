@@ -1,7 +1,7 @@
-import time
 import pytest
+import time
 
-from supplement.assistant import assist, get_location
+from supplement.assistant import assist, get_location, get_context
 
 from .helpers import pytest_funcarg__project, get_source_and_pos
 
@@ -251,7 +251,7 @@ def test_assist_for_names_in_changed_module(project, tmpdir):
 
     time.sleep(1)
     m.write('name1 = 1\nname2 = 2')
-    time.sleep(5.5)
+    project.monitor.boo()
 
     result = get_result()
     assert result == ['name1', 'name2']
@@ -283,14 +283,25 @@ def test_get_location_must_return_name_location_for_imported_names(project):
             pass
     ''')
 
-    source, pos = get_source_and_pos('''
+    source, pos = get_source_and_pos(u'''
         import toimport
-
         toimport.aa|a()
     ''')
 
     line, fname = get_location(project, source, pos, 'test.py')
     assert fname == 'toimport.py'
+    assert line == 1
+
+def test_get_location_must_return_name_location_for_imported_modules(project):
+    source, pos = get_source_and_pos(u'''
+        import sys
+
+        def foo():
+            sy|s
+    ''')
+
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == None
     assert line == 1
 
 def test_import_package_modules_from_init(project, tmpdir):
@@ -313,3 +324,256 @@ def test_import_package_modules_from_init(project, tmpdir):
 
     result = assist(project, source, pos, str(pkg))
     assert result == ['name']
+
+def test_import_context():
+    source, pos = get_source_and_pos('''
+        import |
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', '', None)
+
+    source, pos = get_source_and_pos('''
+        import package|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', 'package', None)
+
+    source, pos = get_source_and_pos('''
+        import package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        import package.module.submodule|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package.module', 'submodule', None)
+
+    source, pos = get_source_and_pos('''
+        import package1.module1, package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package2', 'module2', None)
+
+    source, pos = get_source_and_pos('''
+        import (package1.module1,
+            package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, 'package2', 'module2', None)
+
+    source, pos = get_source_and_pos('''
+        import package1.module1, \\
+            package2.module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, 'package2', 'module2', None)
+
+def test_from_context():
+    source, pos = get_source_and_pos('''
+        from package|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '', 'package', None)
+
+    source, pos = get_source_and_pos('''
+        from package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from ..package.module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 1, '..package', 'module', None)
+
+def test_from_import_context():
+    source, pos = get_source_and_pos('''
+        from package import module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('from-import', 1, 'package', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from . import module|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('from-import', 1, '.', 'module', None)
+
+    source, pos = get_source_and_pos('''
+        from ..package import module1, module2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('from-import', 1, '..package', 'module2', None)
+
+def test_simple_expression_context():
+    source, pos = get_source_and_pos('''
+        module.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'module', 'attr', '')
+
+    source, pos = get_source_and_pos('''
+        package.module.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'package.module', 'attr', '')
+
+    source, pos = get_source_and_pos('''
+        module.func(param1, param2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, '', 'param2', 'module.func')
+
+def test_expression_context_with_func_ctx_break():
+    source, pos = get_source_and_pos('''
+        module.func(param1, (package.param2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'package', 'param2', '')
+
+def test_expression_without_func_name():
+    source, pos = get_source_and_pos('''
+        (param1, (param2,)).attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, '(param1,(param2,))', 'attr', '')
+
+def test_complex_expression():
+    source, pos = get_source_and_pos('''
+        module.func(param1, (param2,))(p1=10, m.p2|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'm', 'p2', '')
+
+    source, pos = get_source_and_pos('''
+        module.func(param1, (param2,))(p1=10, p2=m.attr|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, 'm', 'attr', '')
+
+def test_dotted_func_call_context():
+    source, pos = get_source_and_pos('''
+        Foo().foo(param1|
+    ''')
+    result = get_context(source, pos)
+    assert result == ('expr', 1, '', 'param1', 'Foo().foo')
+
+def test_indented_import():
+    source, pos = get_source_and_pos('''
+        def foo():
+            import |
+    ''')
+    result = get_context(source, pos)
+    assert result == ('import', 2, '', '', None)
+
+def test_assistant_must_suggest_function_argument_names(project):
+    result = do_assist(project, '''
+        def foo(arg1, arg2):
+            pass
+
+        # scope guard
+
+        foo(a|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+
+
+    project.create_module('toimport', '''
+        def foo(arg1, arg2):
+            pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.foo(a|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+
+def test_assistant_must_suggest_constructor_argument_names(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+def test_assistant_must_suggest_argument_names_for_class_functions(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo.__init__(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def __init__(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo.__init__(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' in result
+
+def test_assistant_must_suggest_argument_names_for_methods(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def foo(self, arg1, arg2):
+                pass
+
+        # scope guard
+
+        Foo().foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result
+
+    project.create_module('toimport', '''
+        class Foo(object):
+            def foo(self, arg1, arg2):
+                pass
+    ''')
+
+    result = do_assist(project, '''
+        import toimport
+        toimport.Foo().foo(|
+    ''')
+    assert 'arg1=' in result
+    assert 'arg2=' in result
+    assert 'self=' not in result

@@ -1,5 +1,6 @@
 from supplement.evaluator import infer
 from supplement.scope import StaticScope, get_scope_at
+from supplement.common import UnknownObject
 
 from .helpers import pytest_funcarg__project, cleantabs
 
@@ -267,3 +268,34 @@ def test_op_getitem_with_non_value_object(project):
 
     obj = infer('p', scope.get_child_by_lineno(1), 4)
     assert 'append' in obj
+
+def test_unknown_attributes_call(project):
+    scope = project.create_scope('''
+        def foo(idx):
+            data = [idx.get_value()]
+    ''')
+
+    obj = infer('data[0]', scope.get_child_by_lineno(1), 100)
+    assert type(obj) == UnknownObject
+
+def test_function_call_with_default_args(project):
+    scope = project.create_scope('''
+        def foo(name, opt=[]):
+            return opt
+    ''')
+
+    obj = infer("foo('name')", scope, 100)
+    assert 'append' in obj
+
+def test_function_call_with_starargs(project):
+    scope = project.create_scope('''
+        def foo(*args):
+            return args[1]
+    ''')
+
+    obj = infer("foo('name', [])", scope, 100)
+    assert 'append' in obj
+
+def test_compare_expression(scope):
+    obj = infer("5 in (1,2,3)", scope, 100)
+    assert 'bit_length' in obj

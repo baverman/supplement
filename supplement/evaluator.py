@@ -1,7 +1,9 @@
 import ast
+import logging
 
-from .objects import create_object
-from .common import Value, UnknownObject
+from .objects import create_object, FakeInstanceObject
+from .common import Value, UnknownObject, Object
+from .names import RecursiveCallException
 
 def infer(string, scope, lineno=None):
     tree = ast.parse(string, '<string>', 'eval')
@@ -12,25 +14,35 @@ def infer(string, scope, lineno=None):
     return Evaluator().process(tree, scope)
 
 
-class Indexable(object):
+class Slice(Object):
+    def __init__(self, upper, lower, step):
+        self.upper = upper
+        self.lower = lower
+        self.step = step
+
+
+class Indexable(Object):
     def __init__(self, scope, obj, nodes):
         self.values = [Value(scope, r) for r in nodes]
         self.object = obj
 
     def op_getitem(self, idx):
-        return self.values[idx.get_value()].get_object()
+        idx = idx.get_value()
+        try:
+            value = self.values[idx]
+        except IndexError:
+            return UnknownObject()
+
+        return value.get_object()
 
     def get_names(self):
         return self.object.get_names()
-
-    def __contains__(self, name):
-        return name in self.object
 
     def __getitem__(self, name):
         return self.object[name]
 
 
-class Dict(object):
+class Dict(Object):
     def __init__(self, scope, node):
         self.scope = scope
         self.node = node
@@ -61,13 +73,13 @@ class Dict(object):
 
     def op_setitem(self, idx, value):
         data = self.get_data()
-        data[idx.get_value()] = value
+        try:
+            data[idx.get_value()] = value
+        except AttributeError:
+            pass
 
     def get_names(self):
         return self.object.get_names()
-
-    def __contains__(self, name):
-        return name in self.object
 
     def __getitem__(self, name):
         return self.object[name]
@@ -75,6 +87,9 @@ class Dict(object):
 
 class Evaluator(ast.NodeVisitor):
     def push(self, value):
+        if value is None:
+            raise Exception('Try to push None value')
+
         self.stack.append(value)
 
     def pop(self):
@@ -89,7 +104,13 @@ class Evaluator(ast.NodeVisitor):
     def visit_Attribute(self, node):
         self.visit(node.value)
         obj = self.pop()
-        self.push(obj[node.attr])
+
+        try:
+            value = obj[node.attr]
+        except KeyError:
+            value = UnknownObject()
+
+        self.push(value)
 
     def visit_Str(self, node):
         self.push(create_object(self.scope, node.s))
@@ -126,19 +147,59 @@ class Evaluator(ast.NodeVisitor):
 
         self.push(obj.op_getitem(idx))
 
+    def visit_Slice(self, node):
+        if node.upper:
+            self.visit(node.upper)
+            upper = self.pop()
+        else:
+            upper = None
+
+        if node.lower:
+            self.visit(node.lower)
+            lower = self.pop()
+        else:
+            lower = None
+
+        if node.step:
+            self.visit(node.step)
+            step = self.pop()
+        else:
+            step = None
+
+        self.push(Slice(upper, lower, step))
+
+    def visit_BoolOp(self, node):
+        self.visit(node.values[-1])
+
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+
+    def visit_Compare(self, node):
+        self.push(FakeInstanceObject(create_object(self.scope, bool)))
+
     def process(self, tree, scope, skip_toplevel=True):
-        #from .tree import dump_tree; dump_tree(tree); print
+        #from .tree import dump_tree; print '!!!', scope.filename; print dump_tree(tree); print
 
         self.scope = scope
         self.ops = []
         self.stack = []
 
-        if skip_toplevel:
-            self.generic_visit(tree)
-        else:
-            self.visit(tree)
+        try:
+            if skip_toplevel:
+                self.generic_visit(tree)
+            else:
+                self.visit(tree)
 
-        if len(self.stack) != 1:
-            raise Exception('invalid eval stack:', repr(self.stack))
+            if len(self.stack) != 1:
+                raise Exception('invalid eval stack:', repr(self.stack))
+        except RecursiveCallException:
+            raise
+        except:
+            from .tree import dump_tree
+            logger = logging.getLogger(__name__)
+            logger.exception('\n<<<<<<<<<<<<<<<<<')
+            logger.error('\n|||||||||||| %s - %s - %s\n%s>>>>>>>>>>\n', scope.__class__.__name__,
+                scope.fullname, scope.filename, dump_tree(tree))
+            raise
 
         return self.stack[0]

@@ -57,7 +57,7 @@ def get_block(source, position):
 class TokenGenerator(object):
     def __init__(self, lines):
         it = iter(lines)
-        self.tokens = generate_tokens(it.next)
+        self.tokens = generate_tokens(it.__next__)
         self.onhold = None
 
     def get(self, *tids):
@@ -95,7 +95,7 @@ class TokenGenerator(object):
             try:
                 tid = NL
                 while tid in self.SPACES:
-                    tid, value, _, _, _  = self.tokens.next()
+                    tid, value, _, _, _  = next(self.tokens)
             except (TokenError, StopIteration):
                 tid, value = 0, ''
 

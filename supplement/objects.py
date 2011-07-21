@@ -51,7 +51,7 @@ class FunctionObject(LocationObject):
 
     def get_scope(self):
         module = self.project.get_module(self.func.__module__)
-        return module.get_scope_at(self.func.func_code.co_firstlineno)
+        return module.get_scope_at(self.func.__code__.co_firstlineno)
 
     def op_call(self, args):
         scope = self.get_scope()
@@ -167,7 +167,7 @@ class ClassObject(LocationObject):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().iteritems():
+            for attr, value in cls.get_assigned_attributes().items():
                 if attr not in result:
                     result[attr] = value
 
@@ -247,7 +247,7 @@ class InstanceObject(LocationObject):
         idx = idx.get_value()
         try:
             value = self.obj[idx]
-        except Exception, e:
+        except Exception as e:
             logging.getLogger(__name__).error(e)
             return Object()
 

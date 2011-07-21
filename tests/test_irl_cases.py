@@ -7,22 +7,6 @@ def test_eval_of_os_path_abspath(project):
 
     assert 'lower' in result
 
-@pytest.mark.xfail
-def test_assist_for_gtk_object_attributes(project):
-    result = do_assist(project, '''
-        import gtk
-        gtk.Window().''')
-
-    assert 'activate' in result
-
-@pytest.mark.xfail
-def test_assist_for_gtk_class_properties(project):
-    result = do_assist(project, '''
-        import gtk
-        gtk.Window.props.''')
-
-    assert 'has_focus' in result
-
 def test_logging_getLogger(project):
     result = do_assist(project, '''
         import logging

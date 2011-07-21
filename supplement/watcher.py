@@ -27,7 +27,8 @@ class DummyMonitor(Monitor):
         self.files.add(filename)
 
     def boo(self):
-        map(self.file_changed, self.files)
+        for f in self.files:
+            self.file_changed(f)
 
 
 class FallbackMonitor(Monitor):

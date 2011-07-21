@@ -27,6 +27,59 @@ def get_obj(modules, *names, **kwargs):
 
     return result
 
+def parse_method(refsect, cname, methods):
+    synopsis = refsect.xpath(
+        './programlisting/methodsynopsis | ./programlisting/constructorsynopsis')
+
+    if not len(synopsis):
+        return
+
+    synopsis = synopsis[0]
+    _, _, mname = ''.join(synopsis.find('methodname').itertext()).rpartition('.')
+    if mname == cname:
+        mname = '__init__'
+
+    method = methods[mname] = {'name':mname}
+    params = method['params'] = []
+
+    for p in synopsis.xpath('./methodparam'):
+        pname = p.find('parameter')
+        if pname is None:
+            continue
+
+        pname = pname.text
+        if not pname:
+            continue
+
+        if pname == '...':
+            pname = '**kwargs'
+        elif pname == 'def':
+            pname = 'default'
+
+        init = p.find('initializer')
+        if init is not None:
+            init = ''.join(init.itertext()).strip()
+
+        params.append((pname, init))
+
+    returns = refsect.xpath('.//varlistentry[term/emphasis/text()="Returns"]//classname')
+    if len(returns) and mname != '__init__':
+        method['returns'] = returns[0].text
+    else:
+        method['returns'] = None
+
+    doc = method['doc'] = []
+    for d in refsect.xpath('./para | ./programlisting'):
+        if d.find('methodsynopsis') is None and d.find('constructorsynopsis') is None:
+            text = textwrap.dedent(''.join(d.itertext()))
+            if d.tag == 'programlisting':
+                text = '\n'.join('    ' + r for r in text.splitlines())
+            else:
+                text = textwrap.fill(' '.join(r.strip() for r in text.splitlines()).strip(),
+                    80, expand_tabs=False)
+
+            doc.append(text)
+
 def parse(modules, root, fname):
     for refentry in root.xpath('/refentry'):
         if not refentry.attrib['id'].startswith('class-'):
@@ -42,56 +95,21 @@ def parse(modules, root, fname):
         methods = cls['methods'] = {}
         for refsect in refentry.xpath(
                 './refsect1[title/text()="Methods"]/refsect2 | ./refsect1[title/text()="Constructor"]'):
-            synopsis = refsect.xpath(
-                './programlisting/methodsynopsis | ./programlisting/constructorsynopsis')
-            if not len(synopsis):
-                continue
+            parse_method(refsect, cname, methods)
 
-            synopsis = synopsis[0]
-            _, _, mname = ''.join(synopsis.find('methodname').itertext()).rpartition('.')
-            if mname == cname:
-                mname = '__init__'
 
-            method = methods[mname] = {'name':mname}
-            params = method['params'] = []
+        attrs = cls['attrs'] = []
+        for row in refentry.xpath('./refsect1[title/text()="Attributes"]//row'):
+            entries = row.xpath('./entry')
+            name = entries[0].text.strip().strip('"')
 
-            for p in synopsis.xpath('./methodparam'):
-                pname = p.find('parameter')
-                if pname is None:
-                    continue
-
-                pname = pname.text
-                if not pname:
-                    continue
-
-                if pname == '...':
-                    pname = '**kwargs'
-                elif pname == 'def':
-                    pname = 'default'
-
-                init = p.find('initializer')
-                if init is not None:
-                    init = ''.join(init.itertext()).strip()
-
-                params.append((pname, init))
-
-            returns = refsect.xpath('.//varlistentry[term/emphasis/text()="Returns"]//classname')
-            if len(returns) and mname != '__init__':
-                method['returns'] = returns[0].text
+            atype = entries[2].xpath('.//classname')
+            if len(atype):
+                atype = atype[0].text.strip()
             else:
-                method['returns'] = None
+                atype = None
 
-            doc = method['doc'] = []
-            for d in refsect.xpath('./para | ./programlisting'):
-                if d.find('methodsynopsis') is None and d.find('constructorsynopsis') is None:
-                    text = textwrap.dedent(''.join(d.itertext()))
-                    if d.tag == 'programlisting':
-                        text = '\n'.join('    ' + r for r in text.splitlines())
-                    else:
-                        text = textwrap.fill(' '.join(r.strip() for r in text.splitlines()).strip(),
-                            80, expand_tabs=False)
-
-                    doc.append(text)
+            attrs.append((name, atype))
 
 
 if __name__ == '__main__':

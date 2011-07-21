@@ -1,13 +1,7 @@
-from supplement.assistant import assist
 from supplement.scope import get_scope_at
 from supplement.evaluator import infer
 
-from .helpers import pytest_funcarg__project, get_source_and_pos
-
-def do_assist(project, source, filename=None):
-    filename = filename or 'test.py'
-    source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
+from .helpers import pytest_funcarg__project, get_source_and_pos, do_assist
 
 def test_class_must_contain_objects_defined_in_glade_file(project):
     project.register_hook('supplement.hooks.pygtk')
@@ -31,9 +25,6 @@ def test_class_must_contain_objects_defined_in_glade_file(project):
     result = infer('self.vbox1', scope, 5)
     assert 'pack_start' in result
 
-    result = infer('self.vbox1.get_window()', scope, 5)
-    assert 'set_title' in result
-
 def est_provider_must_resolve_params_of_handlers_defined_in_glade_file(project):
     result = get_proposals(project, 'pass\n\n'
         '   def on_window1_delete_event(self, wnd):\n'
@@ -42,12 +33,36 @@ def est_provider_must_resolve_params_of_handlers_defined_in_glade_file(project):
 
 def test_provider_must_allow_to_implement_glade_handlers(project):
     project.register_hook('supplement.hooks.pygtk')
-    source, pos = get_source_and_pos('''
+    result = do_assist(project, '''
         class Window(object):
             """glade-file: tests/pygtktest/sample.glade"""
 
             def on|
     ''')
 
-    result = assist(project, source, pos, 'test.py')
     assert 'on_window1_delete_event' in result
+
+def test_docbook_hints(project):
+    project.register_hook('supplement.hooks.pygtk')
+
+    result = do_assist(project, '''
+        import gtk
+        gtk.HBox().get_window().set_t|
+    ''')
+    assert 'set_title' in result
+
+    result = do_assist(project, '''
+        import gtk
+        gtk.HBox().get_window().set_title(tit|
+    ''')
+    assert 'title=' in result
+
+
+    scope = project.create_scope('import gtk')
+    print infer('gtk.HBox().window', scope, 5)
+
+    result = do_assist(project, '''
+        import gtk
+        gtk.HBox().window.set_title(tit|
+    ''')
+    assert 'title=' in result

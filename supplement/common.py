@@ -100,6 +100,14 @@ class ClassProxy(GetObjectDelegate):
         return self.project.get_module(self.module_name)[self.class_name]
 
 
+class GetObjectable(object):
+    def __init__(self, obj):
+        self.object = obj
+
+    def get_object(self):
+        return self.object
+
+
 class MethodObject(GetObjectDelegate):
     def __init__(self, obj, func_obj):
         self.object = obj

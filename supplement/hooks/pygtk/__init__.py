@@ -6,7 +6,7 @@ from cPickle import load
 
 from supplement.names import ClassName
 from supplement.objects import FakeInstanceObject, ClassObject
-from supplement.common import ClassProxy, Object, MethodObject, NoneObject, UnknownObject
+from supplement.common import ClassProxy, Object, MethodObject, NoneObject, UnknownObject, GetObjectable
 
 pydoc_glade_file_matcher = re.compile('(?m)^.*glade-file\s*:(.*)$')
 pygtk_modules = [None]
@@ -192,8 +192,32 @@ class OverridedClass(ClassObject):
         return self.orig_class[name]
 
     def get_assigned_attributes(self):
-        return {}
+        try:
+            self._assigned_attributes
+        except AttributeError:
+            self._assigned_attributes = {}
+            for name, value in self.content['attrs']:
+                if value:
+                    module_name, _, aname = value.rpartition('.')
+                    module = self.project.get_module(module_name)
+                    try:
+                        value = module[aname]
+                    except KeyError:
+                        value = UnknownObject()
+                    else:
+                        value = FakeInstanceObject(value)
+                else:
+                    value = UnknownObject()
 
+                self._assigned_attributes[name] = GetObjectable(value)
+
+        result = self._assigned_attributes.copy()
+        for cls in self.get_bases():
+            for attr, value in cls.get_assigned_attributes().iteritems():
+                if attr not in result:
+                    result[attr] = value
+
+        return result
 
 class OverridedFunction(Object):
     def __init__(self, project, content):
@@ -218,7 +242,20 @@ class OverridedFunction(Object):
         return MethodObject(obj, self)
 
     def get_signature(self):
-        return None
+        args = ['self']
+        defaults = []
+        kwargs = None
+        for p, value in self.content['params']:
+            if p == '**kwarg':
+                kwargs = 'kwargs'
+            else:
+                args.append(p)
+
+            if value is not None:
+                defaults.append(value)
+
+        return self.content['name'], args, None, kwargs, defaults
+
 
 class PyGtkHintProvider(object):
     def __init__(self, project):

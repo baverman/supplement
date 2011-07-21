@@ -186,12 +186,12 @@ class FakeInstanceObject(Object):
         return set(self._class.get_names()).union(set(self._class.get_assigned_attributes()))
 
     def __getitem__(self, name):
-        if name in self._class.get_names():
-            return wrap_in_method(self, self._class[name])
-
         attrs = self._class.get_assigned_attributes()
         if name in attrs:
             return wrap_in_method(self, attrs[name].get_object())
+
+        if name in self._class.get_names():
+            return wrap_in_method(self, self._class[name])
 
         raise KeyError(name)
 

@@ -12,6 +12,7 @@ class Server(object):
         self.projects = {}
         self.configs = {}
         self.monitor = get_monitor()
+        self.monitor.start()
 
     def configure_project(self, path, config):
         self.configs[path] = config

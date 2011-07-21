@@ -27,12 +27,12 @@ def force_byte_string(source):
 
 def fix(code, tries=10):
     try:
-        print '>>>>>', tries
-        print code
-        print '\n<<<<\n'
+        #print '>>>>>', tries
+        #print code
+        #print '\n<<<<\n'
         return ast.parse(code), code
     except IndentationError, e:
-        print 'IE', tries, e
+        #print 'IE', tries, e
         if not tries:
             raise
 
@@ -46,7 +46,7 @@ def fix(code, tries=10):
                 break
 
     except SyntaxError, e:
-        print 'SE', tries, e
+        #print 'SE', tries, e
         if not tries:
             raise
 

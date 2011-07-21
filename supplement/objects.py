@@ -273,7 +273,7 @@ def wrap_in_method(obj, attr):
 def wrap_in_descriptor(obj, attr):
     if isinstance(attr, DescriptorObject):
         attr.owner = obj
-    elif not isinstance(attr, FunctionObject) and attr.is_descriptor():
+    elif not getattr(attr, 'as_method_for', None) and attr.is_descriptor():
         return DescriptorObject(obj, attr)
 
     return attr

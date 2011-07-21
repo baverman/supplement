@@ -31,6 +31,9 @@ def test_class_must_contain_objects_defined_in_glade_file(project):
     result = infer('self.vbox1', scope, 5)
     assert 'pack_start' in result
 
+    result = infer('self.vbox1.get_window()', scope, 5)
+    assert 'set_title' in result
+
 def est_provider_must_resolve_params_of_handlers_defined_in_glade_file(project):
     result = get_proposals(project, 'pass\n\n'
         '   def on_window1_delete_event(self, wnd):\n'

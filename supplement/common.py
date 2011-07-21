@@ -72,6 +72,7 @@ class GetObjectDelegate(object):
 
 
 class UnknownObject(Object): pass
+class NoneObject(Object): pass
 
 
 class Value(object):

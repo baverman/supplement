@@ -1,16 +1,34 @@
 import re
 import xml.sax.handler
 import gobject
+import os.path
+from cPickle import load
 
 from supplement.names import ClassName
-from supplement.objects import FakeInstanceObject
-from supplement.common import ClassProxy, Object
+from supplement.objects import FakeInstanceObject, ClassObject
+from supplement.common import ClassProxy, Object, MethodObject, NoneObject, UnknownObject
 
 pydoc_glade_file_matcher = re.compile('(?m)^.*glade-file\s*:(.*)$')
+pygtk_modules = [None]
 
 def init(project):
     project.add_docstring_processor(docstring_processor)
     project.add_module_provider('glade', GladeModuleProvider())
+    project.add_override_processor(override_pygtk)
+
+def get_modules():
+    if pygtk_modules[0] is None:
+        with open(os.path.join(os.path.dirname(__file__), 'modules.dump')) as f:
+            pygtk_modules[0] = load(f)
+
+    return pygtk_modules[0]
+
+def override_pygtk(project, module):
+    modules = get_modules()
+    if module.name in modules:
+        module = OverrideModule(project, module, modules[module.name])
+
+    return module
 
 def docstring_processor(docstring, obj):
     if not isinstance(obj, ClassName):
@@ -103,19 +121,104 @@ class GladeClass(Object):
         obj = self._attrs[name] = FakeInstanceObject(self.get_gtk_object(name[0]))
         return obj
 
+class OverrideModule(object):
+    def __init__(self, project, module, content):
+        self.project = project
+        self.overrided_module = module
+        self.content = content
+        self._attrs = {}
 
-class GladeName(object):
-    def __init__(self, pyobject, module, line):
-        self.pyobject = pyobject
-        self.line = line
+    @property
+    def module(self):
+        return None
+
+    @property
+    def filename(self):
+        return None
+
+    def get_names(self):
+        return set(self.content).union(self.overrided_module.get_names())
+
+    def __getitem__(self, name):
+        try:
+            obj = self._attrs[name]
+        except KeyError:
+            try:
+                robj = self.content[name]
+            except KeyError:
+                obj = self._attrs[name] = None
+            else:
+                if robj['type'] == 'class':
+                    obj = self._attrs[name] = OverridedClass(self.project, self, robj)
+                else:
+                    raise Exception('Unknown object type')
+        if obj:
+            return obj
+
+        return self.overrided_module[name]
+
+
+class OverridedClass(ClassObject):
+    def __init__(self, project, module, content):
+        self.project = project
+        self.content = content
         self.module = module
+        self._attrs = {}
+        self.orig_class = module.overrided_module[content['name']]
 
-    def get_object(self):
-        return self.pyobject
+    def get_bases(self):
+        return [self.orig_class]
 
-    def get_definition_location(self):
-        return self.module, self.line
+    def get_names(self):
+        return self.get_bases()[0].get_names()
 
+    def __getitem__(self, name):
+        try:
+            obj = self._attrs[name]
+        except KeyError:
+            try:
+                robj = self.content['methods'][name]
+            except KeyError:
+                obj = self._attrs[name] = None
+            else:
+                if 'params' in robj:
+                    obj = self._attrs[name] = OverridedFunction(self.project, robj)
+                else:
+                    raise Exception('Unknown class attribute')
+
+        if obj:
+            return obj
+
+        return self.orig_class[name]
+
+    def get_assigned_attributes(self):
+        return {}
+
+
+class OverridedFunction(Object):
+    def __init__(self, project, content):
+        self.project = project
+        self.content = content
+
+    def op_call(self, args):
+        result = self.content['returns']
+        if result:
+            module_name, _, name = result.rpartition('.')
+            module = self.project.get_module(module_name)
+            try:
+                obj = module[name]
+            except KeyError:
+                return UnknownObject()
+
+            return FakeInstanceObject(obj)
+        else:
+            return NoneObject()
+
+    def as_method_for(self, obj):
+        return MethodObject(obj, self)
+
+    def get_signature(self):
+        return None
 
 class PyGtkHintProvider(object):
     def __init__(self, project):

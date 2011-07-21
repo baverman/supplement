@@ -116,6 +116,9 @@ class Project(object):
     def add_module_provider(self, ctx, provider):
         self.module_providers[ctx] = provider
 
+    def add_override_processor(self, override):
+        self.module_providers['default'].add_override(override)
+
     def process_docstring(self, docstring, obj):
         for p in self.docstring_processors:
             result = p(docstring, obj)

@@ -130,7 +130,7 @@ class OverrideModule(object):
 
     @property
     def module(self):
-        return None
+        return self.overrided_module.module
 
     @property
     def filename(self):

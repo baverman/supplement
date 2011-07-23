@@ -66,3 +66,16 @@ def test_docbook_hints(project):
         gtk.HBox().window.set_title(tit|
     ''')
     assert 'title=' in result
+
+def test_docbook_modules_must_behave_as_usual(project):
+    project.register_hook('supplement.hooks.pygtk')
+
+    result = do_assist(project, '''
+        from gtk.key|
+    ''')
+    assert 'keysyms' in result
+
+    result = do_assist(project, '''
+        from gtk.keysyms import Dow|
+    ''')
+    assert 'Down' in result

@@ -29,12 +29,15 @@ def create_module(project, name, source):
     project.module_providers['default'].cache[name] = m
 
     package_name, _, module_name = name.rpartition('.')
+    package_path = '/'.join(package_name.split('.'))
+
     if package_name:
+        module.__file__ = "%s/%s.py" % (package_path, module_name)
         project.package_resolver.cache[os.path.abspath(package_name)] = package_name
         p = TestModule(project, package_name)
         p._module = sys.modules[package_name] = types.ModuleType(package_name)
         setattr(sys.modules[package_name], module_name, module)
-        p._module.__file__ = None
+        p._module.__file__ = "%s/__init__.py" % package_path
         p.source = None
         project.module_providers['default'].cache[package_name] = p
 

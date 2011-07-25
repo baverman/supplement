@@ -317,7 +317,23 @@ def get_location(project, source, position, filename):
             obj = scope.find_name(match, lineno)
         else:
             obj = infer(ctx, scope, lineno)[match]
-    else:
-        return None, None
 
-    return obj.get_location()
+        return obj.get_location()
+
+    elif ctx_type in ('import', 'from-import'):
+        if ctx:
+            module_name = ctx + '.' + match
+        else:
+            module_name = match
+
+        try:
+            module = project.get_module(module_name)
+        except ImportError:
+            module_name, _, _ = module_name.rpartition('.')
+            if module_name:
+                module = project.get_module(module_name)
+                return module[match].get_location()
+        else:
+            return 1, module.filename
+
+    return None, None

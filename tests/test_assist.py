@@ -304,6 +304,48 @@ def test_get_location_must_return_name_location_for_imported_modules(project):
     assert fname == None
     assert line == 1
 
+def test_get_location_must_return_module_location_in_import_statements(project):
+    project.create_module('package.toimport', '''
+        #cmnt
+        name = 'test'
+    ''')
+
+    source, pos = get_source_and_pos('''
+        import packa|ge.module
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/__init__.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        import package.toimpo|rt
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from pack|age import toimport
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/__init__.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from package import toim|port
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from package.toimport import na|me
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 2
+
+
 def test_import_package_modules_from_init(project, tmpdir):
     project.set_root(str(tmpdir))
     pkgdir = tmpdir.join('package')

@@ -133,6 +133,9 @@ class FunctionName(NodeLocation, Object):
         args = [self.scope.args[k] for k in sorted(self.scope.args.keys())]
         return (self.scope.name, args, self.scope.vararg, self.scope.kwarg, self.scope.defaults)
 
+    def get_docstring(self):
+        return ast.get_docstring(self.node)
+
 
 class ClassName(NodeLocation, Object):
     def __init__(self, scope, node):
@@ -207,8 +210,12 @@ class ClassName(NodeLocation, Object):
         return result
 
     def get_signature(self):
-        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
-        return name, args[1:], vararg, kwarg, defaults
+        sig = self['__init__'].get_signature()
+        if sig:
+            name, args, vararg, kwarg, defaults = sig
+            return name, args[1:], vararg, kwarg, defaults
+        else:
+            return None
 
 
 class ArgumentName(GetObjectDelegate):

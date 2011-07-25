@@ -1,14 +1,9 @@
 import pytest
 import time
 
-from supplement.assistant import assist, get_location, get_context
+from supplement.assistant import assist, get_location, get_context, get_docstring
 
-from .helpers import pytest_funcarg__project, get_source_and_pos
-
-def do_assist(project, source, filename=None):
-    filename = filename or 'test.py'
-    source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
+from .helpers import pytest_funcarg__project, get_source_and_pos, do_assist
 
 def test_assist_for_module_names(project):
     result = do_assist(project, '''
@@ -619,3 +614,28 @@ def test_assistant_must_suggest_argument_names_for_methods(project):
     assert 'arg1=' in result
     assert 'arg2=' in result
     assert 'self=' not in result
+
+def test_get_docstring_for_builtin_functions(project):
+    source, pos = get_source_and_pos('''
+        map(|
+    ''')
+
+    sig, docstring = get_docstring(project, source, pos, None)
+    assert sig == None
+    assert 'map(' in docstring
+
+def test_get_docstring_for_dyn_functions(project):
+    project.create_module('toimport', '''
+        def boo(arg1, arg2):
+            """Boo docs"""
+            pass
+    ''')
+
+    source, pos = get_source_and_pos('''
+        import toimport
+        toimport.boo(|
+    ''')
+
+    sig, docstring = get_docstring(project, source, pos, None)
+    assert sig == 'boo(arg1, arg2)'
+    assert 'Boo docs' in docstring

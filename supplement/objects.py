@@ -1,5 +1,6 @@
 import logging
-from types import FunctionType, ClassType, ModuleType
+from types import FunctionType, ClassType, ModuleType, BuiltinFunctionType
+from inspect import getargspec, getdoc
 
 from .tree import CtxNodeProvider
 from .common import Object, GetObjectDelegate, MethodObject
@@ -50,8 +51,11 @@ class FunctionObject(LocationObject):
         self.func = func
 
     def get_scope(self):
-        module = self.project.get_module(self.func.__module__)
-        return module.get_scope_at(self.func.func_code.co_firstlineno)
+        if self.func.__module__:
+            module = self.project.get_module(self.func.__module__)
+            return module.get_scope_at(self.func.func_code.co_firstlineno)
+
+        return None
 
     def op_call(self, args):
         scope = self.get_scope()
@@ -64,8 +68,13 @@ class FunctionObject(LocationObject):
         return MethodObject(obj, self)
 
     def get_signature(self):
-        from inspect import getargspec
-        return (self.func.__name__,) + getargspec(self.func)
+        try:
+            return (self.func.__name__,) + getargspec(self.func)
+        except TypeError:
+            return None
+
+    def get_docstring(self):
+        return getdoc(self.func)
 
 
 class DescriptorObject(GetObjectDelegate):
@@ -158,9 +167,10 @@ class ClassObject(LocationObject):
                 obj = self[name]
                 if type(obj) == FunctionObject:
                     scope = obj.get_scope()
+                    if not scope: continue
+
                     scope.get_names()
-                    if not scope.args:
-                        continue
+                    if not scope.args: continue
 
                     slf = scope.get_name(scope.args[0])
                     self._assigned_attributes.update(slf.find_attr_assignments())
@@ -174,8 +184,12 @@ class ClassObject(LocationObject):
         return result
 
     def get_signature(self):
-        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
-        return name, args[1:], vararg, kwarg, defaults
+        sig = self['__init__'].get_signature()
+        if sig:
+            name, args, vararg, kwarg, defaults = sig
+            return name, args[1:], vararg, kwarg, defaults
+        else:
+            return None
 
 
 class FakeInstanceObject(Object):
@@ -285,14 +299,14 @@ def create_object(owner, obj, node=None):
     if node[0] == 'imported':
         newobj = ImportedObject(node)
 
-    elif obj_type == FunctionType:
-        newobj = FunctionObject(node, obj)
-
     elif obj_type == ModuleType:
         return owner.project.get_module(obj.__name__)
 
     elif obj_type == ClassType or issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
+
+    elif obj_type == FunctionType or obj_type == BuiltinFunctionType:
+        newobj = FunctionObject(node, obj)
 
     else:
         newobj = InstanceObject(node, obj)

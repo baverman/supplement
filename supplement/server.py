@@ -2,7 +2,7 @@ import sys
 from cPickle import loads, dumps
 
 from supplement.project import Project
-from supplement.assistant import assist, get_location
+from supplement.assistant import assist, get_location, get_docstring
 from supplement.scope import get_scope_at
 from supplement.watcher import get_monitor
 from supplement.fixer import sanitize_encoding
@@ -48,6 +48,9 @@ class Server(object):
 
     def get_location(self, path, source, position, filename):
         return get_location(self.get_project(path), source, position, filename)
+
+    def get_docstring(self, path, source, position, filename):
+        return get_docstring(self.get_project(path), source, position, filename)
 
     def get_scope(self, path, source, lineno, filename, continous):
         return get_scope_at(

@@ -1,5 +1,6 @@
 import logging
 from keyword import iskeyword
+from inspect import formatargspec
 from tokenize import (NAME, NL, NEWLINE, TokenError, generate_tokens,
     untokenize, ERRORTOKEN, INDENT, DEDENT)
 
@@ -302,11 +303,15 @@ def assist(project, source, position, filename):
 def char_is_id(c):
     return c == '_' or c.isalnum()
 
-def get_location(project, source, position, filename):
+def get_id_ending(source, position):
     source_len = len(source)
     while position < source_len and char_is_id(source[position]):
         position += 1
 
+    return position
+
+def get_location(project, source, position, filename):
+    position = get_id_ending(source, position)
     ctx_type, lineno, ctx, match, fctx = get_context(source, position)
 
     if ctx_type == 'expr':
@@ -327,13 +332,30 @@ def get_location(project, source, position, filename):
             module_name = match
 
         try:
-            module = project.get_module(module_name)
+            module = project.get_module(module_name, filename)
         except ImportError:
             module_name, _, _ = module_name.rpartition('.')
             if module_name:
-                module = project.get_module(module_name)
+                module = project.get_module(module_name, filename)
                 return module[match].get_location()
         else:
             return 1, module.filename
 
     return None, None
+
+def get_docstring(project, source, position, filename):
+    position = get_id_ending(source, position)
+    ctx_type, lineno, ctx, match, fctx = get_context(source, position)
+    if ctx_type == 'expr' and fctx:
+        source = sanitize_encoding(source)
+        ast_nodes, fixed_source = fix(source)
+        scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
+        obj = infer(fctx, scope, lineno)
+
+        sig = obj.get_signature()
+        if sig:
+            sig = '%s%s' % (sig[0], formatargspec(*sig[1:]))
+
+        return sig, obj.get_docstring()
+
+    return None

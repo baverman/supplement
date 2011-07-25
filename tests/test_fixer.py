@@ -56,3 +56,17 @@ def test_if(project):
     ''')
 
     assert 'name' in result
+
+def test_unclosed_bracket():
+    source = cleantabs('''
+        func(
+
+        def foo():
+            pass
+
+        def boo():
+            pass
+
+    ''')
+
+    tree, source = fix(source, 5)

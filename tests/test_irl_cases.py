@@ -1,4 +1,4 @@
-from .helpers import pytest_funcarg__project, do_assist
+from .helpers import pytest_funcarg__project, do_assist, get_source_and_pos
 
 def test_eval_of_os_path_abspath(project):
     result = do_assist(project, '''

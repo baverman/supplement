@@ -51,7 +51,7 @@ class FunctionObject(LocationObject):
         self.func = func
 
     def get_scope(self):
-        if self.func.__module__:
+        if getattr(self.func, '__module__', None):
             module = self.project.get_module(self.func.__module__)
             return module.get_scope_at(self.func.func_code.co_firstlineno)
 
@@ -292,6 +292,8 @@ def wrap_in_descriptor(obj, attr):
 
     return attr
 
+MethodDescriptor = type(list.__dict__['append'])
+
 def create_object(owner, obj, node=None):
     node = node or ('undefined', None)
     obj_type = type(obj)
@@ -305,7 +307,7 @@ def create_object(owner, obj, node=None):
     elif obj_type == ClassType or issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
 
-    elif obj_type == FunctionType or obj_type == BuiltinFunctionType:
+    elif obj_type == FunctionType or obj_type == BuiltinFunctionType or obj_type == MethodDescriptor:
         newobj = FunctionObject(node, obj)
 
     else:

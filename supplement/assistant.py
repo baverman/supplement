@@ -273,7 +273,6 @@ def get_context(source, position):
 def assist(project, source, position, filename):
     logging.getLogger(__name__).info('assist %s %s', project.root, filename)
     ctx_type, lineno, ctx, match, fctx = get_context(source, position)
-
     if ctx_type == 'expr':
         source = sanitize_encoding(source)
         ast_nodes, fixed_source = fix(source)

@@ -639,3 +639,18 @@ def test_get_docstring_for_dyn_functions(project):
     sig, docstring = get_docstring(project, source, pos, None)
     assert sig == 'boo(arg1, arg2)'
     assert 'Boo docs' in docstring
+
+def test_get_location_for_assigned_names(project):
+    source, pos = get_source_and_pos('''
+        a = []
+        print a|
+    ''')
+    line, fname = get_location(project, source, pos, None)
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        b = 5
+        print b|
+    ''')
+    line, fname = get_location(project, source, pos, None)
+    assert line == 1

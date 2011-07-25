@@ -79,9 +79,10 @@ class ImportedName(GetObjectDelegate):
 
 
 class AssignedName(GetObjectDelegate):
-    def __init__(self, idx, value):
+    def __init__(self, idx, value, lineno):
         self.value = value
         self.idx = idx
+        self.lineno = lineno
 
     def get_object(self):
         obj = self.value.get_object()
@@ -90,6 +91,12 @@ class AssignedName(GetObjectDelegate):
         else:
             return obj.op_getitem(Valuable(self.idx))
 
+    def get_location(self):
+        obj = self.get_object()
+        if getattr(obj, 'filename', self.filename) != self.filename:
+            return obj.get_location()
+        else:
+            return self.lineno, self.filename
 
 class RecursiveCallException(Exception):
     def __init__(self, obj):
@@ -339,7 +346,7 @@ class NameExtractor(ast.NodeVisitor):
 
         for i, n in targets:
             if isinstance(n,  ast.Name):
-                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value)), n.lineno)
+                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value), n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):
                 self.subscript_assignments.append((n.value, n.slice, node.value))
 

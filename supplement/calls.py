@@ -1,6 +1,8 @@
 import ast
 from .utils import WeakedList
 from .common import UnknownObject
+from .names import ClassName
+from .objects import ClassObject
 
 class CallExtractor(ast.NodeVisitor):
     def process(self, node):
@@ -98,7 +100,11 @@ class CallDB(object):
             calls = []
             for line, func, args in call_extractor.process(s.node):
                 if not args: continue
+
                 func = scope.eval(func, False)
+                if isinstance(func, (ClassName, ClassObject)):
+                    func = func['__init__']
+
                 if func:
                     fscope = func.get_scope()
                     if fscope:

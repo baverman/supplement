@@ -113,6 +113,9 @@ class MethodObject(GetObjectDelegate):
         self.object = obj
         self.function = func_obj
 
+    def get_scope(self):
+        return self.function.get_scope()
+
     def get_object(self):
         return self.function
 

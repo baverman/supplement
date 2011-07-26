@@ -245,13 +245,16 @@ class ArgumentName(GetObjectDelegate):
             self._object = FakeInstanceObject(self.scope.parent.cls)
         else:
             args = self.scope.project.calldb.get_args_for_scope(self.scope)
-            index = self.index
-            if self.scope.parent.type == 'class':
-                index -= 1
+            if args:
+                index = self.index
+                if self.scope.parent.type == 'class':
+                    index -= 1
 
-            try:
-                obj = args[self.index]
-            except IndexError:
+                try:
+                    obj = args[index]
+                except IndexError:
+                    obj = UnknownObject()
+            else:
                 obj = UnknownObject()
 
             self._object = obj

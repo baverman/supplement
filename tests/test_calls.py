@@ -34,3 +34,25 @@ def test_calldb_must_provide_arguments_for_function(project):
     ''')
 
     assert 'append' in result
+
+def test_calldb_must_provide_arguments_for_constructor(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def __init__(self, arg):
+                self.arg = arg
+
+        Foo([]).arg.a|
+    ''')
+
+    assert 'append' in result
+
+def test_calldb_must_provide_arguments_for_methods(project):
+    result = do_assist(project, '''
+        class Foo(object):
+            def foo(self, arg):
+                arg.a|
+
+        Foo().foo([])
+    ''')
+
+    assert 'append' in result

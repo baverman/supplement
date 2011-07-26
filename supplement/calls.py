@@ -87,7 +87,10 @@ class CallDB(object):
 
         return args
 
-    def collect_calls(self, scope):
+    def collect_calls(self, scope, skip_if_exists=False):
+        if skip_if_exists and scope.filename in self.files:
+            return
+
         from .scope import traverse_tree
 
         try:
@@ -101,7 +104,11 @@ class CallDB(object):
             for line, func, args in call_extractor.process(s.node):
                 if not args: continue
 
-                func = scope.eval(func, False)
+                try:
+                    func = scope.eval(func, False)
+                except:
+                    continue
+
                 if isinstance(func, (ClassName, ClassObject)):
                     func = func['__init__']
 

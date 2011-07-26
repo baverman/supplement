@@ -1,3 +1,5 @@
+from supplement.assistant import infer
+
 from .helpers import pytest_funcarg__project, do_assist
 
 def test_calls_update(project):
@@ -55,4 +57,19 @@ def test_calldb_must_provide_arguments_for_methods(project):
         Foo().foo([])
     ''')
 
+    assert 'append' in result
+
+def test_calldb_for_imported_function(project):
+    m = project.create_module('toimport', '''
+        def foo(arg):
+            pass
+    ''')
+
+    scope = project.create_scope('''
+        from toimport import foo
+        foo([])
+    ''')
+
+    project.calldb.collect_calls(scope)
+    result = infer('arg', m.get_scope_at(2))
     assert 'append' in result

@@ -35,6 +35,8 @@ class Object(object):
     def get_signature(self):
         return None
 
+    def get_scope(self):
+        return None
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -69,6 +71,9 @@ class GetObjectDelegate(object):
 
     def get_signature(self):
         return self.get_object().get_signature()
+
+    def get_scope(self):
+        return self.get_object().get_scope()
 
 
 class UnknownObject(Object): pass

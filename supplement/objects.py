@@ -53,7 +53,9 @@ class FunctionObject(LocationObject):
     def get_scope(self):
         if getattr(self.func, '__module__', None):
             module = self.project.get_module(self.func.__module__)
-            return module.get_scope_at(self.func.func_code.co_firstlineno)
+            code = getattr(self.func, '__code__', None)
+            if code:
+                return module.get_scope_at(code.co_firstlineno)
 
         return None
 

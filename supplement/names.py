@@ -112,6 +112,9 @@ class FunctionName(NodeLocation, Object):
         self.node = node
         self._calling = False
 
+    def get_scope(self):
+        return self.scope
+
     def op_call(self, args=[]):
 
         if self._calling:

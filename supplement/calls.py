@@ -1,5 +1,6 @@
 import ast
 from .utils import WeakedList
+from .common import UnknownObject
 
 class CallExtractor(ast.NodeVisitor):
     def process(self, node):
@@ -25,12 +26,32 @@ class CallInfo(object):
         self.args = args
 
     def get_args(self):
-        pass
+        try:
+            return self._evaluated_args
+        except AttributeError:
+            pass
+
+        result = []
+        for arg in self.args:
+            try:
+                v = self.scope.eval(arg, False)
+            except:
+                v = None
+            else:
+                if isinstance(v, UnknownObject):
+                    v = None
+
+            result.append(v)
+
+        self._evaluated_args = result
+        return result
+
 
 class CallDB(object):
-    def __init__(self):
+    def __init__(self, project):
         self.calls = {}
         self.files = {}
+        self.project = project
 
     def update_calls(self, fname, calls):
         try:
@@ -38,9 +59,31 @@ class CallDB(object):
         except KeyError:
             fcalls = self.files[fname] = []
 
-        for fullname, ci in calls:
+        for fname, fullname, ci in calls:
             fcalls.append(ci)
-            self.calls.setdefault(fullname, WeakedList()).append(ci)
+            self.calls.setdefault((fname, fullname), WeakedList()).append(ci)
+
+    def get_args_for_scope(self, scope):
+        key = scope.filename, scope.fullname
+        try:
+            clist = self.calls[key]
+        except KeyError:
+            return None
+
+        args = [None] * len(scope.args)
+        for ci in list(clist):
+            for i, v in enumerate(ci.get_args()):
+                if v and args[i] is None:
+                    args[i] = v
+
+            if not any(r is None for r in args):
+                return args
+
+        for i, v in enumerate(args):
+            if v is None:
+                args[i] = UnknownObject()
+
+        return args
 
     def collect_calls(self, scope):
         from .scope import traverse_tree
@@ -54,11 +97,16 @@ class CallDB(object):
         for s in traverse_tree(scope):
             calls = []
             for line, func, args in call_extractor.process(s.node):
+                if not args: continue
                 func = scope.eval(func, False)
                 if func:
                     fscope = func.get_scope()
                     if fscope:
                         ci = CallInfo(scope, line, args)
-                        calls.append((fscope.fullname, ci))
+                        calls.append((fscope.filename, fscope.fullname, ci))
 
             self.update_calls(scope.filename, calls)
+
+    def index_project(self):
+        for fname, source in self.get_project_sources():
+            pass

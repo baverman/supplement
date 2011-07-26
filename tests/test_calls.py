@@ -1,6 +1,4 @@
-from .helpers import pytest_funcarg__project
-
-from supplement.calls import CallDB
+from .helpers import pytest_funcarg__project, do_assist
 
 def test_calls_update(project):
     scope = project.create_scope('''
@@ -13,9 +11,8 @@ def test_calls_update(project):
         foo(int)
     ''')
 
-    cdb = CallDB()
-    cdb.collect_calls(scope)
-    assert len(cdb.calls['foo']) == 1
+    project.calldb.collect_calls(scope)
+    assert len(project.calldb.calls[(None, 'foo')]) == 1
 
     scope = project.create_scope('''
         def bar():
@@ -25,7 +22,15 @@ def test_calls_update(project):
             map(arg, bar())
     ''')
 
-    cdb.collect_calls(scope)
-    assert len(cdb.calls['foo']) == 0
+    project.calldb.collect_calls(scope)
+    assert len(project.calldb.calls[(None, 'foo')]) == 0
 
+def test_calldb_must_provide_arguments_for_function(project):
+    result = do_assist(project, '''
+        def foo(arg):
+            arg.a|
 
+        foo([])
+    ''')
+
+    assert 'append' in result

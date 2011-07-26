@@ -5,6 +5,7 @@ import logging
 from .tree import AstProvider
 from .module import ModuleProvider, PackageResolver
 from .watcher import DummyMonitor
+from .calls import CallDB
 
 class Project(object):
     def __init__(self, root, config=None, monitor=None):
@@ -25,6 +26,8 @@ class Project(object):
 
         for h in self.config.get('hooks', []):
             self.register_hook(h)
+
+        self.calldb = CallDB(self)
 
     def _refresh_paths(self):
         self.sources = []

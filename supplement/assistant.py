@@ -278,6 +278,7 @@ def assist(project, source, position, filename):
         ast_nodes, fixed_source = fix(source)
 
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
+        project.calldb.collect_calls(scope.get_toplevel())
         if not ctx:
             names = get_scope_names(scope, lineno)
             if fctx:

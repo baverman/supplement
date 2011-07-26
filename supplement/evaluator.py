@@ -194,12 +194,15 @@ class Evaluator(ast.NodeVisitor):
                 raise Exception('invalid eval stack:', repr(self.stack))
         except RecursiveCallException:
             raise
-        except:
-            from .tree import dump_tree
-            logger = logging.getLogger(__name__)
-            logger.exception('\n<<<<<<<<<<<<<<<<<')
-            logger.error('\n|||||||||||| %s - %s - %s\n%s>>>>>>>>>>\n', scope.__class__.__name__,
-                scope.fullname, scope.filename, dump_tree(tree))
+        except Exception, e:
+            if not getattr(e, '_processed', None):
+                from .tree import dump_tree
+                logger = logging.getLogger(__name__)
+                logger.exception('\n<<<<<<<<<<<<<<<<<')
+                logger.error('\n|||||||||||| %s - %s - %s\n%s>>>>>>>>>>\n', scope.__class__.__name__,
+                    scope.fullname, scope.filename, dump_tree(tree))
+                e._processed = True
+
             raise
 
         return self.stack[0]

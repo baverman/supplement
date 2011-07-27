@@ -102,3 +102,16 @@ def test_calldb_for_imported_function(project):
     result = infer('arg', m.get_scope_at(2))
     assert 'append' in result
 
+def test_calldb_for_imported_class(project):
+    project.create_module('toimport', '''
+        class Foo(object):
+            def __init__(self, bar):
+                self.bar = bar
+    ''')
+
+    result = do_assist(project, '''
+        from toimport import Foo
+        Foo([]).bar.a|
+    ''')
+
+    assert 'append' in result

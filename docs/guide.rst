@@ -47,7 +47,7 @@ is environment variables which will be set on server start. Think about infamous
 ``DJANGO_SETTINGS_MODULE``.
 
 There is no need to call additional methods (like server start), after environment
-construct it ready to work. Server will be run automatically on any proxy all.
+construction it ready to work. Server will be run automatically on any proxy call.
 
 .. note::
 
@@ -66,7 +66,7 @@ test suite::
    # Creating environment with default executable and envvars
    env = Environment()
 
-   # In real code root should be passed as absolute path
+   # In real code root should be passed as absolute path in order
    # to don't depend from server working directory.
    project_root = '.'
 

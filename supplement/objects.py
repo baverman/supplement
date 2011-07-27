@@ -3,7 +3,7 @@ from types import FunctionType, ClassType, ModuleType, BuiltinFunctionType
 from inspect import getargspec, getdoc
 
 from .tree import CtxNodeProvider
-from .common import Object, GetObjectDelegate, MethodObject
+from .common import Object, GetObjectDelegate, MethodObject, UnknownObject
 
 def dir_top(obj):
     try:
@@ -64,7 +64,7 @@ class FunctionObject(LocationObject):
         if scope:
             return scope.function.op_call(args)
         else:
-            return Object(None)
+            return UnknownObject()
 
     def as_method_for(self, obj):
         return MethodObject(obj, self)
@@ -260,14 +260,19 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        idx = idx.get_value()
         try:
-            value = self.obj[idx]
-        except Exception, e:
-            logging.getLogger(__name__).error(e)
-            return Object()
+            idx = idx.get_value()
+        except AttributeError:
+            pass
+        else:
+            try:
+                value = self.obj[idx]
+            except Exception, e:
+                logging.getLogger(__name__).error(e)
+            else:
+                return create_object(self, value)
 
-        return create_object(self, value)
+        return UnknownObject()
 
     def get_value(self):
         return self.obj

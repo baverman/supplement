@@ -78,7 +78,7 @@ test suite::
    pos = len(source)
 
    # Call returns possible completion alternatives for source cursor position
-   result = env.assist(project_root, source, pos, 'test.py')
+   match, result = env.assist(project_root, source, pos, 'test.py')
 
    # It returns sorted list ready to be shown in IDE popup menu
    assert result == ['popen', 'pow', 'print', 'property']

@@ -1,10 +1,19 @@
 import sys
 import os.path
 import time
-from cPickle import loads, dumps
+from cPickle import dumps
 
 class Environment(object):
+    """Supplement server client"""
+
     def __init__(self, executable=None, env=None):
+        """Environment constructor
+
+        :param executable: path to python executable. May be path to virtualenv interpreter
+              start script like ``/path/to/venv/bin/python``.
+
+        :param env: environment variables dict, e.g. ``DJANGO_SETTINGS_MODULE`` value.
+        """
         self.executable = executable or sys.executable
         self.env = env
 
@@ -26,7 +35,7 @@ class Environment(object):
         while not os.path.exists(addr):
             if time.time() - start > 5:
                 raise Exception('Supplement server launching timeout exceed')
-            time.sleep(0.01)
+            time.sleep(0.1)
 
         self.conn = Client(addr)
 
@@ -37,7 +46,7 @@ class Environment(object):
             self.run()
 
         self.conn.send_bytes(dumps((name, args, kwargs), 2))
-        result, is_ok = loads(self.conn.recv_bytes())
+        result, is_ok = self.conn.recv()
 
         if is_ok:
             return result
@@ -45,25 +54,90 @@ class Environment(object):
             raise Exception(result)
 
     def assist(self, project_path, source, position, filename):
+        """Return list of completion proposals
+
+        :param project_path: absolute project path
+        :param source: unicode or byte string code source
+        :param position: character or byte cursor position
+        :param filename: absolute path of file with source code
+        :returns: Sorted list of proposals
+        """
         return self._call('assist', project_path, source, position, filename)
 
     def get_location(self, project_path, source, position, filename):
+        """Return line number and file path where name under cursor is defined
+
+        If line is None location wasn't finded. If file path is None, defenition is located in
+        the same source.
+
+        :param project_path: absolute project path
+        :param source: unicode or byte string code source
+        :param position: character or byte cursor position
+        :param filename: absolute path of file with source code
+        :returns: tuple (lineno, file path)
+        """
         return self._call('get_location', project_path, source, position, filename)
 
     def get_docstring(self, project_path, source, position, filename):
+        """Return signature and docstring for current cursor call context
+
+        Some examples of call context::
+
+           func(|
+           func(arg|
+           func(arg,|
+
+           func(arg, func2(|    # call context is func2
+
+        Signature and docstring can be None
+
+        :param project_path: absolute project path
+        :param source: unicode or byte string code source
+        :param position: character or byte cursor position
+        :param filename: absolute path of file with source code
+        :returns: tuple (signarure, docstring)
+        """
         return self._call('get_docstring', project_path, source, position, filename)
 
     def configure_project(self, project_path, config):
+        """Reconfigure project
+
+        :param project_path: absolute project path
+        :param config: dict with config key/values
+        """
         return self._call('configure_project', project_path, config)
 
     def get_scope(self, project_path, source, lineno, filename, continous=True):
+        """
+        Return scope name at cursor position
+
+        For example::
+
+            class Foo:
+                def foo(self):
+                    pass
+                    |
+                def bar(self):
+                    pass
+
+        get_scope return Foo.foo if continuous is True and Foo otherwise.
+
+        :param project_path: absolute project path
+        :param source: unicode or byte string code source
+        :param position: character or byte cursor position
+        :param filename: absolute path of file with source code
+        :param continous: allow parent scope beetween children if False
+        """
         return self._call('get_scope', project_path, source, lineno, filename, continous=continous)
 
     def close(self):
+        """Shutdown server"""
+
         try:
             self.conn
+        except AttributeError:
+            pass
+        else:
             self.conn.send_bytes(dumps(('close', (), {}), 2))
             self.conn.close()
             del self.conn
-        except AttributeError:
-            pass

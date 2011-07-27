@@ -60,7 +60,11 @@ class ModuleName(Object):
 
     def get_location(self):
         module = self.project.get_module(self.name, self.filename)
-        return 1, module.filename
+        fname = module.filename
+        if fname:
+            return 1, fname
+        else:
+            return None, None
 
 
 class ImportedName(GetObjectDelegate):

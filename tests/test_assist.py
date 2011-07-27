@@ -297,6 +297,15 @@ def test_get_location_must_return_name_location_for_imported_modules(project):
 
     line, fname = get_location(project, source, pos, 'test.py')
     assert fname == None
+    assert line == None
+
+    source, pos = get_source_and_pos(u'''
+        import os
+        o|s
+    ''')
+
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname.endswith('os.py')
     assert line == 1
 
 def test_get_location_must_return_module_location_in_import_statements(project):

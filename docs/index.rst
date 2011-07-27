@@ -10,11 +10,12 @@ About
    this" title="Flattr this"    border="0" /></a></noscript>
    </div>
 
-Supplement is a python completion framework built from scratch with speed and
-flexibility top priority goals. It provides high level API for plugin developers
-to allow them concentrate on editing capabilities while supplement takes all
-dirty work: monitor file changes, multiple interpreters/virtual
-environments/projects support and assist context resolving.
+`Supplement <https://github.com/baverman/supplement>`_ is a python completion
+framework built from scratch with speed and flexibility top priority goals. It
+provides high level :doc:`API <api>` for plugin developers to allow them
+concentrate on editing capabilities while supplement takes all dirty work:
+monitor file changes, multiple interpreters/virtual environments/projects
+support and context resolving.
 
 
 Features
@@ -70,7 +71,7 @@ To be up to date with ``git pull`` call only.
 Documentation
 -------------
 
-There is a quick :ref:`guide <guide>` for IDE developers.
+There is a quick :doc:`guide <guide>` and :doc:`API <api>` for IDE developers.
 
 
 Integration status
@@ -125,4 +126,4 @@ Contacts
 * `Github issue tracker <https://github.com/baverman/supplement/issues>`_. This is
   a preferred way for bug reporting and communication.
 
-* If you have no github account you can mail for ``bobrov at vl dot ru``.
+* If you have no github account you can mail to ``bobrov at vl dot ru``.

@@ -1,5 +1,6 @@
 import os.path
 import ast
+import pytest
 
 from supplement.assistant import infer
 from supplement.scope import Scope, traverse_tree
@@ -17,6 +18,7 @@ def pytest_generate_tests(metafunc):
                 if fname.endswith('.py') and fname != '__init__.py':
                     metafunc.addcall(funcargs={'fname':os.path.join(top, fname)})
 
+@pytest.mark.slow
 def test_evalutor_must_resolve_all_call_info_without_errors(project, fname):
     scope = Scope(ast.parse(open(fname).read()), '', None, 'module')
     scope.project = project
@@ -27,7 +29,6 @@ def test_evalutor_must_resolve_all_call_info_without_errors(project, fname):
         for line, func, args in call_extractor.process(s.node):
             if not args: continue
             func = s.eval(func, False)
-
 
 def test_calls_update(project):
     scope = project.create_scope('''

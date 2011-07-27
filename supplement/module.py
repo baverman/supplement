@@ -277,6 +277,7 @@ class OverrideModule(Module):
         logging.getLogger(__name__).info('Try to override %s from %s', self.name, self._filename)
         self._module = imp.new_module(self.name)
         self._module.__orig__ = self.overrided_module.module
+        self._module.__file__ = self._filename
         execfile(self._filename, self._module.__dict__)
 
         return self._module

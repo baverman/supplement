@@ -41,3 +41,12 @@ def test_class_object_must_provide_attributes_assigned_in_its_methods(project):
     obj = scope.get_name('boo')
     assert 'boo_attr' in obj
     assert 'append' in obj['boo_attr']
+
+def test_buildtin_method_type(project):
+    from supplement.common import MethodObject
+
+    scope = project.create_scope('''
+        boo = []
+    ''')
+    meth = scope['boo']['append']
+    assert isinstance(meth, MethodObject)

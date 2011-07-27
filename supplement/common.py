@@ -35,6 +35,8 @@ class Object(object):
     def get_signature(self):
         return None
 
+    def get_scope(self):
+        return None
 
 class GetObjectDelegate(object):
     def get_names(self):
@@ -69,6 +71,9 @@ class GetObjectDelegate(object):
 
     def get_signature(self):
         return self.get_object().get_signature()
+
+    def get_scope(self):
+        return self.get_object().get_scope()
 
 
 class UnknownObject(Object): pass
@@ -113,6 +118,9 @@ class MethodObject(GetObjectDelegate):
         self.object = obj
         self.function = func_obj
 
+    def get_scope(self):
+        return self.function.get_scope()
+
     def get_object(self):
         return self.function
 
@@ -120,8 +128,12 @@ class MethodObject(GetObjectDelegate):
         return self.function.op_call([self.object] + args)
 
     def get_signature(self):
-        name, args, vararg, kwarg, defaults = self.function.get_signature()
-        return name, args[1:], vararg, kwarg, defaults
+        sig = self.function.get_signature()
+        if sig:
+            name, args, vararg, kwarg, defaults = sig
+            return name, args[1:], vararg, kwarg, defaults
+        else:
+            return None
 
 
 class ListHolder(GetObjectDelegate):

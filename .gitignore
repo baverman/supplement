@@ -6,3 +6,6 @@
 /build
 /dist
 /*.egg-info
+
+/docs/_build
+/docs/doc.zip

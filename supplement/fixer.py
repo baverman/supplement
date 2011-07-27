@@ -32,13 +32,13 @@ def fix(code, tries=10):
         if not tries:
             raise
 
-        code = code.splitlines()
-        result = []
-        for i, l in reversed(list(enumerate(code[:e.lineno]))):
-            if l.strip():
-                result.extend(code[:i])
-                result.append(l + ' pass')
-                result.extend(code[i+1:])
+        result = code.splitlines()
+        i = e.lineno
+        while i > 0:
+            i -= 1
+            ls = result[i].rstrip()
+            if ls.endswith(':'):
+                result[i] = ls + ' pass'
                 break
 
     except SyntaxError as e:

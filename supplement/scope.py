@@ -68,6 +68,13 @@ class Scope(object):
         else:
             self.fullname = name
 
+    def get_toplevel(self):
+        scope = self
+        while scope.parent:
+            scope = scope.parent
+
+        return scope
+
     def __repr__(self):
         return '<Scope %s %s %s>' % (self.type, self.fullname, self.filename)
 

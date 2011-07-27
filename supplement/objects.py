@@ -1,8 +1,9 @@
 import logging
-from types import FunctionType, ModuleType
+from types import FunctionType, ModuleType, BuiltinFunctionType
+from inspect import getargspec, getdoc
 
 from .tree import CtxNodeProvider
-from .common import Object, GetObjectDelegate, MethodObject
+from .common import Object, GetObjectDelegate, MethodObject, UnknownObject
 
 def dir_top(obj):
     try:
@@ -50,22 +51,32 @@ class FunctionObject(LocationObject):
         self.func = func
 
     def get_scope(self):
-        module = self.project.get_module(self.func.__module__)
-        return module.get_scope_at(self.func.__code__.co_firstlineno)
+        if getattr(self.func, '__module__', None):
+            module = self.project.get_module(self.func.__module__)
+            code = getattr(self.func, '__code__', None)
+            if code:
+                return module.get_scope_at(code.co_firstlineno)
+
+        return None
 
     def op_call(self, args):
         scope = self.get_scope()
         if scope:
             return scope.function.op_call(args)
         else:
-            return Object(None)
+            return UnknownObject()
 
     def as_method_for(self, obj):
         return MethodObject(obj, self)
 
     def get_signature(self):
-        from inspect import getargspec
-        return (self.func.__name__,) + getargspec(self.func)
+        try:
+            return (self.func.__name__,) + getargspec(self.func)
+        except TypeError:
+            return None
+
+    def get_docstring(self):
+        return getdoc(self.func)
 
 
 class DescriptorObject(GetObjectDelegate):
@@ -158,9 +169,10 @@ class ClassObject(LocationObject):
                 obj = self[name]
                 if type(obj) == FunctionObject:
                     scope = obj.get_scope()
+                    if not scope: continue
+
                     scope.get_names()
-                    if not scope.args:
-                        continue
+                    if not scope.args: continue
 
                     slf = scope.get_name(scope.args[0])
                     self._assigned_attributes.update(slf.find_attr_assignments())
@@ -174,8 +186,12 @@ class ClassObject(LocationObject):
         return result
 
     def get_signature(self):
-        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
-        return name, args[1:], vararg, kwarg, defaults
+        sig = self['__init__'].get_signature()
+        if sig:
+            name, args, vararg, kwarg, defaults = sig
+            return name, args[1:], vararg, kwarg, defaults
+        else:
+            return None
 
 
 class FakeInstanceObject(Object):
@@ -244,14 +260,19 @@ class InstanceObject(LocationObject):
             return wrap_in_method(self, self.get_class()[name])
 
     def op_getitem(self, idx):
-        idx = idx.get_value()
         try:
-            value = self.obj[idx]
-        except Exception as e:
-            logging.getLogger(__name__).error(e)
-            return Object()
+            idx = idx.get_value()
+        except AttributeError:
+            pass
+        else:
+            try:
+                value = self.obj[idx]
+            except Exception, e:
+                logging.getLogger(__name__).error(e)
+            else:
+                return create_object(self, value)
 
-        return create_object(self, value)
+        return UnknownObject()
 
     def get_value(self):
         return self.obj
@@ -278,6 +299,8 @@ def wrap_in_descriptor(obj, attr):
 
     return attr
 
+MethodDescriptor = type(list.__dict__['append'])
+
 def create_object(owner, obj, node=None):
     node = node or ('undefined', None)
     obj_type = type(obj)
@@ -285,14 +308,14 @@ def create_object(owner, obj, node=None):
     if node[0] == 'imported':
         newobj = ImportedObject(node)
 
-    elif obj_type == FunctionType:
-        newobj = FunctionObject(node, obj)
-
     elif obj_type == ModuleType:
         return owner.project.get_module(obj.__name__)
 
     elif issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
+
+    elif obj_type == FunctionType or obj_type == BuiltinFunctionType or obj_type == MethodDescriptor:
+        newobj = FunctionObject(node, obj)
 
     else:
         newobj = InstanceObject(node, obj)

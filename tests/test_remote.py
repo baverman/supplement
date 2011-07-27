@@ -13,7 +13,7 @@ def test_project_config():
         from exo import IconView
         IconView().props.''')
 
-    result = env.assist('.', source, len(source), 'test.py')
+    match, result = env.assist('.', source, len(source), 'test.py')
     assert 'layout_mode' in result
 
 @pytest.mark.slow
@@ -24,5 +24,5 @@ def test_simple_assist():
         from os import popen
         p''')
 
-    result = env.assist('.', source, len(source), 'test.py')
+    match, result = env.assist('.', source, len(source), 'test.py')
     assert result == ['popen', 'pow', 'print', 'property']

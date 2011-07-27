@@ -32,3 +32,41 @@ def test_glued_indent():
 
         if True: pass''')
     assert source == expected_source
+
+def test_except_with_colon(project):
+    result = do_assist(project, '''
+        def foo():
+
+            try:
+                code
+            except Att|:
+
+            other
+    ''')
+
+    assert 'AttributeError' in result
+
+def test_if(project):
+    result = do_assist(project, '''
+        name = 1
+
+        if na|
+
+        other
+    ''')
+
+    assert 'name' in result
+
+def test_unclosed_bracket():
+    source = cleantabs('''
+        func(
+
+        def foo():
+            pass
+
+        def boo():
+            pass
+
+    ''')
+
+    tree, source = fix(source, 5)

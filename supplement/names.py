@@ -60,7 +60,11 @@ class ModuleName(Object):
 
     def get_location(self):
         module = self.project.get_module(self.name, self.filename)
-        return 1, module.filename
+        fname = module.filename
+        if fname:
+            return 1, fname
+        else:
+            return None, None
 
 
 class ImportedName(GetObjectDelegate):
@@ -79,9 +83,10 @@ class ImportedName(GetObjectDelegate):
 
 
 class AssignedName(GetObjectDelegate):
-    def __init__(self, idx, value):
+    def __init__(self, idx, value, lineno):
         self.value = value
         self.idx = idx
+        self.lineno = lineno
 
     def get_object(self):
         obj = self.value.get_object()
@@ -90,6 +95,12 @@ class AssignedName(GetObjectDelegate):
         else:
             return obj.op_getitem(Valuable(self.idx))
 
+    def get_location(self):
+        obj = self.get_object()
+        if getattr(obj, 'filename', self.filename) != self.filename:
+            return obj.get_location()
+        else:
+            return self.lineno, self.filename
 
 class RecursiveCallException(Exception):
     def __init__(self, obj):
@@ -104,6 +115,9 @@ class FunctionName(NodeLocation, Object):
         self.scope = scope
         self.node = node
         self._calling = False
+
+    def get_scope(self):
+        return self.scope
 
     def op_call(self, args=[]):
 
@@ -132,6 +146,9 @@ class FunctionName(NodeLocation, Object):
         self.scope.get_names()
         args = [self.scope.args[k] for k in sorted(self.scope.args.keys())]
         return (self.scope.name, args, self.scope.vararg, self.scope.kwarg, self.scope.defaults)
+
+    def get_docstring(self):
+        return ast.get_docstring(self.node)
 
 
 class ClassName(NodeLocation, Object):
@@ -207,8 +224,12 @@ class ClassName(NodeLocation, Object):
         return result
 
     def get_signature(self):
-        name, args, vararg, kwarg, defaults = self['__init__'].get_signature()
-        return name, args[1:], vararg, kwarg, defaults
+        sig = self['__init__'].get_signature()
+        if sig:
+            name, args, vararg, kwarg, defaults = sig
+            return name, args[1:], vararg, kwarg, defaults
+        else:
+            return None
 
 
 class ArgumentName(GetObjectDelegate):
@@ -227,7 +248,20 @@ class ArgumentName(GetObjectDelegate):
             from .objects import FakeInstanceObject
             self._object = FakeInstanceObject(self.scope.parent.cls)
         else:
-            self._object = Object()
+            args = self.scope.project.calldb.get_args_for_scope(self.scope)
+            if args:
+                index = self.index
+                if self.scope.parent.type == 'class':
+                    index -= 1
+
+                try:
+                    obj = args[index]
+                except IndexError:
+                    obj = UnknownObject()
+            else:
+                obj = UnknownObject()
+
+            self._object = obj
 
         return self._object
 
@@ -278,6 +312,14 @@ class AttributesAssignsExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
         return self.result
+
+
+def create_object_from_class_name(scope, name):
+    from .objects import FakeInstanceObject
+    return FakeInstanceObject(scope.eval(name, False))
+
+def create_object_from_expr(scope, expr):
+    return scope.eval(expr, False)
 
 
 class NameExtractor(ast.NodeVisitor):
@@ -332,7 +374,7 @@ class NameExtractor(ast.NodeVisitor):
 
         for i, n in targets:
             if isinstance(n,  ast.Name):
-                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value)), n.lineno)
+                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value), n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):
                 self.subscript_assignments.append((n.value, n.slice, node.value))
 
@@ -352,6 +394,20 @@ class NameExtractor(ast.NodeVisitor):
             self.scope.kwarg = node.kwarg
             self.add_name(node.kwarg, (KwargName, self.scope), self.scope.node.lineno)
 
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            self.add_name(node.name.id,
+                (create_object_from_class_name, self.scope, node.type), node.lineno)
+
+        self.generic_visit(node)
+
+    def visit_With(self, node):
+        if node.optional_vars:
+            self.add_name(node.optional_vars.id,
+                (create_object_from_expr, self.scope, node.context_expr), node.lineno)
+
+        self.generic_visit(node)
+
     def add_name(self, name, value, lineno):
         if name in self.names:
             self.names[name].insert(0, (lineno, value))
@@ -359,7 +415,7 @@ class NameExtractor(ast.NodeVisitor):
             self.names[name] = [(lineno, value)]
 
     def process(self, node, scope):
-        #from .tree import dump_tree; dump_tree(node); print()
+        #from .tree import dump_tree; print dump_tree(node); print
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}

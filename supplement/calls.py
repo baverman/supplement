@@ -105,7 +105,7 @@ class CallDB(object):
                 if not args: continue
 
                 try:
-                    func = scope.eval(func, False)
+                    func = s.eval(func, False)
                 except:
                     continue
 

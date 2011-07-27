@@ -194,7 +194,7 @@ class Evaluator(ast.NodeVisitor):
                 raise Exception('invalid eval stack:', repr(self.stack))
         except RecursiveCallException:
             raise
-        except Exception, e:
+        except Exception as e:
             if not getattr(e, '_processed', None):
                 from .tree import dump_tree
                 logger = logging.getLogger(__name__)

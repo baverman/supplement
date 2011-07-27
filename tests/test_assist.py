@@ -299,7 +299,7 @@ def test_get_location_must_return_name_location_for_imported_modules(project):
     assert fname == None
     assert line == None
 
-    source, pos = get_source_and_pos(u'''
+    source, pos = get_source_and_pos('''
         import os
         o|s
     ''')
@@ -630,7 +630,7 @@ def test_assist_in_except_clause(project):
 
         try:
             pass
-        except Exc, e:
+        except Exc as e:
             e.msg.a
     ''')
 

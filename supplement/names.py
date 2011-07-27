@@ -396,7 +396,7 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node):
         if node.name:
-            self.add_name(node.name.id,
+            self.add_name(node.name,
                 (create_object_from_class_name, self.scope, node.type), node.lineno)
 
         self.generic_visit(node)

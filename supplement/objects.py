@@ -193,6 +193,9 @@ class ClassObject(LocationObject):
         else:
             return None
 
+    def get_docstring(self):
+        return getdoc(self.cls)
+
 
 class FakeInstanceObject(Object):
     def __init__(self, class_obj):
@@ -267,7 +270,7 @@ class InstanceObject(LocationObject):
         else:
             try:
                 value = self.obj[idx]
-            except Exception, e:
+            except Exception as e:
                 logging.getLogger(__name__).error(e)
             else:
                 return create_object(self, value)

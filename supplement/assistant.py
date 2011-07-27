@@ -351,7 +351,6 @@ def get_docstring(project, source, position, filename):
         ast_nodes, fixed_source = fix(source)
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         obj = infer(fctx, scope, lineno)
-
         sig = obj.get_signature()
         if sig:
             sig = '%s%s' % (sig[0], formatargspec(*sig[1:]))

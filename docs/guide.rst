@@ -51,7 +51,7 @@ construct it ready to work. Server will be run automatically on any proxy all.
 
 .. note::
 
-   Do not forget to call Environment.close on application quit.
+   Do not forget to call ``Environment.close()`` on application quit.
 
 
 Calling Environment proxy methods
@@ -95,4 +95,23 @@ Detailed method description can be found in
 Configuration
 -------------
 
-Of course, there is a way to pass configuration
+Of course, you can change project behavior by providing additional parameters via
+:meth:`~supplement.remote.Environment.configure_project`.
+
+Config keys
+***********
+
+**sources**
+   List of relative to project root paths. Define source directories
+   inside project root. By default it is equal to root itself. Also can be used
+   to refer other project.
+
+**libs**
+   List of absolute paths to additional libs directories.
+
+**overrides**
+   List of absolute paths to overridden module directories.
+
+**hooks**
+   List of hook package names. There is only one builtin
+   ``supplement.hooks.pygtk``.

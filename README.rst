@@ -4,6 +4,8 @@ to allow them concentrate on editing capabilities while supplement take all
 dirty work: monitor file changes, multiple interpreters/virtual
 environments/projects support and assist context resolving.
 
+`Documentation <http://packages.python.org/supplement/>`_
+
 Features
 --------
 

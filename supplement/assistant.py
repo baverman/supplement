@@ -296,9 +296,9 @@ def assist(project, source, position, filename):
             project.get_module(ctx, filename).get_names(),
             project.get_possible_imports(ctx, filename))
     elif ctx_type is None:
-        return []
+        return match, []
 
-    return collect_names(match, names)
+    return match, collect_names(match, names)
 
 def char_is_id(c):
     return c == '_' or c.isalnum()

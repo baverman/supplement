@@ -368,7 +368,7 @@ def test_import_package_modules_from_init(project, tmpdir):
     m = pkgdir.join('module.py')
     m.write('name = []')
 
-    result = assist(project, source, pos, str(pkg))
+    match, result = assist(project, source, pos, str(pkg))
     assert result == ['name']
 
 def test_import_context():

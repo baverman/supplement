@@ -92,4 +92,4 @@ def get_source_and_pos(source):
 def do_assist(project, source, filename=None):
     filename = filename or 'test.py'
     source, pos = get_source_and_pos(source)
-    return assist(project, source, pos, filename)
+    return assist(project, source, pos, filename)[1]

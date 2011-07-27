@@ -54,13 +54,13 @@ class Environment(object):
             raise Exception(result)
 
     def assist(self, project_path, source, position, filename):
-        """Return list of completion proposals
+        """Return completion match and list of completion proposals
 
         :param project_path: absolute project path
         :param source: unicode or byte string code source
         :param position: character or byte cursor position
         :param filename: absolute path of file with source code
-        :returns: Sorted list of proposals
+        :returns: tuple (completion match, sorted list of proposals)
         """
         return self._call('assist', project_path, source, position, filename)
 

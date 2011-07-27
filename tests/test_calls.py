@@ -17,7 +17,7 @@ def pytest_generate_tests(metafunc):
                 if fname.endswith('.py') and fname != '__init__.py':
                     metafunc.addcall(funcargs={'fname':os.path.join(top, fname)})
 
-def test_evalutor_must_resolve_all_call_info_without_errors(project, fname):
+def est_evalutor_must_resolve_all_call_info_without_errors(project, fname):
     scope = Scope(ast.parse(open(fname).read()), '', None, 'module')
     scope.project = project
     scope.filename = fname

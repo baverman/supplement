@@ -38,14 +38,3 @@ def test_unclosed_bracket_indented_assist(project):
     ''')
 
     assert 'sys' in result
-
-def test_complex_import(project):
-    project.create_module('bar.egg2', 'a = []')
-    project.create_module('bar.egg1', 'from egg2 import a')
-
-    result = do_assist(project, '''
-        from bar import egg1
-        egg1.a.|
-    ''')
-
-    assert 'append' in result

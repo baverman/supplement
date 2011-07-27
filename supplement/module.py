@@ -90,6 +90,9 @@ def load_module(project, name):
     try:
         __import__(name)
         return sys.modules[name]
+    except ImportError:
+        logging.getLogger(__name__).error('Can\'t import %s. sys.path is: %s', name, sys.path)
+        raise
     finally:
         sys.path = oldsyspath
 

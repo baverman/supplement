@@ -62,7 +62,7 @@ class Project(object):
             parts = package_name.split('.')
             name = '.'.join(parts[:len(parts)-level]) + (name[level:] if len(name) > level + 1 else '')
 
-        if filename and filename.endswith('__init__.py'):
+        if filename and exists(join(dirname(filename), '__init__.py')):
             pkg_dir = dirname(filename)
             if exists(join(pkg_dir, name+'.py')):
                 package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))

@@ -292,5 +292,5 @@ class OverrideModule(Module):
     def __getitem__(self, name):
         try:
             return Module.__getitem__(self, name)
-        except KeyError:
+        except (KeyError, AttributeError):
             return self.overrided_module[name]

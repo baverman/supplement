@@ -38,3 +38,27 @@ def test_unclosed_bracket_indented_assist(project):
     ''')
 
     assert 'sys' in result
+
+def est_pyqt_signals(project):
+    result = do_assist(project, '''
+        from PyQt4 import QtGui
+        app = QtGui.QApplication([])
+        window = QtGui.QWidget()
+        button  = QtGui.QPushButton(window)
+        button.clicked.|
+    ''')
+
+    assert result == ['connect', 'disconnect', 'emit']
+
+def test_recursive_name_defenition(project):
+    result = do_assist(project, '''
+        import os, re
+        def fnc(file):
+            code = open(file).read()
+            pyrex = re.search("(from)(.+)", code)
+            code = code.replace(pyrex.group(1), "b")
+            code.|
+    ''')
+
+    print result
+    assert False

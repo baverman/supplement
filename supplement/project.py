@@ -22,7 +22,7 @@ class Project(object):
         self.package_resolver = PackageResolver()
         self.docstring_processors = []
 
-        self.override = [join(dirname(__file__), 'override')]
+        self.registered_hooks = set()
 
         for h in self.config.get('hooks', []):
             self.register_hook(h)
@@ -110,11 +110,14 @@ class Project(object):
         return result
 
     def register_hook(self, name):
-        try:
-            __import__(name)
-            sys.modules[name].init(self)
-        except:
-            logging.getLogger(__name__).exception('[%s] register failed' % name)
+        if name not in self.registered_hooks:
+            try:
+                __import__(name)
+                sys.modules[name].init(self)
+            except:
+                logging.getLogger(__name__).exception('[%s] hook register failed' % name)
+            else:
+                self.registered_hooks.add(name)
 
     def add_docstring_processor(self, processor):
         self.docstring_processors.append(processor)
@@ -138,6 +141,3 @@ class Project(object):
             return join(self.root, name[1:])
 
         return join(dirname(rel), name)
-
-    def add_override(self, path):
-        self.override.append(path)

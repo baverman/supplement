@@ -50,6 +50,9 @@ class FunctionObject(LocationObject):
         LocationObject.__init__(self, node)
         self.func = func
 
+    def __repr__(self):
+        return '<FunctionObject %s %s>' % (self.func.__name__, getattr(self, 'filename', 'No file'))
+
     def get_scope(self):
         if getattr(self.func, '__module__', None):
             module = self.project.get_module(self.func.__module__)

@@ -51,6 +51,7 @@ def est_pyqt_signals(project):
     assert result == ['connect', 'disconnect', 'emit']
 
 def test_recursive_name_defenition(project):
+    project.register_hook('supplement.hooks.override')
     result = do_assist(project, '''
         import os, re
         def fnc(file):
@@ -59,6 +60,3 @@ def test_recursive_name_defenition(project):
             code = code.replace(pyrex.group(1), "b")
             code.|
     ''')
-
-    print result
-    assert False

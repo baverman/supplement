@@ -54,8 +54,13 @@ class FunctionObject(LocationObject):
         return '<FunctionObject %s %s>' % (self.func.__name__, getattr(self, 'filename', 'No file'))
 
     def get_scope(self):
-        if getattr(self.func, '__module__', None):
-            module = self.project.get_module(self.func.__module__)
+        module = getattr(self, 'declared_in', None)
+        if not module:
+            module_name = getattr(self.func, '__module__', None)
+            if module_name:
+                module = self.project.get_module(module_name)
+
+        if module:
             code = getattr(self.func, '__code__', None)
             if code:
                 return module.get_scope_at(code.co_firstlineno)

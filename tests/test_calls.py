@@ -11,7 +11,7 @@ from .helpers import pytest_funcarg__project, do_assist
 def pytest_generate_tests(metafunc):
     if 'fname' in metafunc.funcargnames:
         for top, dirs, files in os.walk('supplement'):
-            if top.endswith('override'):
+            if top.endswith('override/modules'):
                 continue
 
             for fname in files:

@@ -210,6 +210,7 @@ class Module(object):
 
         obj = self._attrs[name] = create_object(self,
             getattr(self.module, name), self.node_provider[name])
+        obj.declared_in = self
 
         return obj
 

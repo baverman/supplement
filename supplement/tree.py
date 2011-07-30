@@ -93,7 +93,8 @@ class ReturnExtractor(ast.NodeVisitor):
         return self.result
 
     def visit_Return(self, node):
-        self.result.append(node)
+        if node.value:
+            self.result.append(node)
 
 
 class TreeDumper(ast.NodeVisitor):

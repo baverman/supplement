@@ -10,6 +10,8 @@ from .helpers import pytest_funcarg__project, do_assist
 
 def pytest_generate_tests(metafunc):
     if 'fname' in metafunc.funcargnames:
+        #metafunc.addcall(funcargs={'fname':'supplement/hooks/pygtk/docbook.py'})
+        #return
         for top, dirs, files in os.walk('supplement'):
             if top.endswith('override/modules'):
                 continue

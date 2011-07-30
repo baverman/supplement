@@ -111,16 +111,17 @@ class Scope(object):
         try:
             self._names
         except AttributeError:
+            from supplement.names import AssignedName
             self._names, starred_imports, sassigns = NameExtractor().process(self.node, self)
             for m, line in starred_imports:
                 for name in self.project.get_module(m, self.filename).get_names():
                     self._names.setdefault(name, []).append((line, (ImportedName, m, name)))
                     self._names[name].sort(reverse=True)
 
-            for target, idx, value in sassigns:
+            for target, idx, vidx, value, line in sassigns:
                 t = self.eval(target, False)
                 if t:
-                    t.op_setitem(self.eval(idx, False), self.eval(value, False))
+                    t.op_setitem(self.eval(idx, False), AssignedName(vidx, value, line))
                 else:
                     logging.getLogger(__name__).error(
                         "Can't eval target on subscript assign %s %s", self.filename, vars(target))

@@ -106,6 +106,21 @@ class AssignedName(GetObjectDelegate):
             return self.lineno, self.filename
 
 
+class PostponedName(GetObjectDelegate):
+    def __init__(self, owner, *node):
+        self.owner = owner
+        self.node = node
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        obj = self._object = create_name(self.node, self.owner)
+        return obj
+
+
 class RecursiveCallException(Exception):
     def __init__(self, obj):
         self.object = obj
@@ -368,7 +383,7 @@ class NameExtractor(ast.NodeVisitor):
         return result
 
     def visit_For(self, node):
-        value = create_object_from_seq_item(self.scope, node.iter)
+        value = PostponedName(self.scope, create_object_from_seq_item, self.scope, node.iter)
 
         for n, idx in self.get_indexes_for_target(node.target, [], []):
             self.add_name(n.id, (AssignedName, idx, value, n.lineno), node.lineno)
@@ -386,7 +401,7 @@ class NameExtractor(ast.NodeVisitor):
             if isinstance(n,  ast.Name):
                 self.add_name(n.id, (AssignedName, idx, value, n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):
-                self.subscript_assignments.append((n.value, n.slice, node.value))
+                self.subscript_assignments.append((n.value, n.slice, idx, value, n.lineno))
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):

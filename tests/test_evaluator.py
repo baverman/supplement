@@ -302,3 +302,11 @@ def test_compare_expression(scope):
 
 def test_generator_expression(project):
     pass
+
+def test_empty_return(project):
+    scope = project.create_scope('''
+        def foo():
+            return
+    ''')
+    obj = infer('foo()', scope, 100)
+    assert isinstance(obj, UnknownObject)

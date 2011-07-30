@@ -664,24 +664,3 @@ def test_get_location_for_assigned_names(project):
     line, fname = get_location(project, source, pos, None)
     assert line == 1
 
-def test_assist_in_except_clause(project):
-    result = do_assist(project, '''
-        class Exc(Exception):
-            def __init__(self):
-                self.msg = []
-
-        try:
-            pass
-        except Exc, e:
-            e.msg.a
-    ''')
-
-    assert 'append' in result
-
-def test_assist_with_as_statement(project):
-    result = do_assist(project, '''
-        with open("fname") as fobj:
-            f|
-    ''')
-
-    assert 'fobj' in result

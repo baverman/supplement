@@ -89,11 +89,14 @@ class AssignedName(GetObjectDelegate):
         self.lineno = lineno
 
     def get_object(self):
-        obj = self.value.get_object()
-        if self.idx is None:
-            return obj
+        if not self.idx:
+            return self.value
         else:
-            return obj.op_getitem(Valuable(self.idx))
+            obj = self.value
+            for idx in self.idx:
+                obj = obj.op_getitem(Valuable(idx))
+
+            return obj
 
     def get_location(self):
         obj = self.get_object()
@@ -101,6 +104,7 @@ class AssignedName(GetObjectDelegate):
             return obj.get_location()
         else:
             return self.lineno, self.filename
+
 
 class RecursiveCallException(Exception):
     def __init__(self, obj):
@@ -321,6 +325,9 @@ def create_object_from_class_name(scope, name):
 def create_object_from_expr(scope, expr):
     return scope.eval(expr, False)
 
+def create_object_from_seq_item(scope, expr):
+    seq = scope.eval(expr, False)
+    return seq.op_common_item()
 
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
@@ -346,19 +353,25 @@ class NameExtractor(ast.NodeVisitor):
                 if tail:
                     self.additional_imports.setdefault(name, []).append(tail)
 
-    def get_names_from_target(self, target, result):
-        if isinstance(target, ast.Tuple):
+    def get_indexes_for_target(self, target, result, idx):
+        if isinstance(target, (ast.Tuple, ast.List)):
+            idx.append(0)
             for r in target.elts:
-                self.get_names_from_target(r, result)
+                self.get_indexes_for_target(r, result, idx)
+            idx.pop()
 
         else:
-            result.append(target.id)
+            result.append((target, idx[:]))
+            if idx:
+                idx[-1] += 1
 
         return result
 
     def visit_For(self, node):
-        for n in self.get_names_from_target(node.target, []):
-            self.add_name(n, (Object, ), node.lineno)
+        value = create_object_from_seq_item(self.scope, node.iter)
+
+        for n, idx in self.get_indexes_for_target(node.target, [], []):
+            self.add_name(n.id, (AssignedName, idx, value, n.lineno), node.lineno)
 
         self.generic_visit(node)
 
@@ -367,14 +380,11 @@ class NameExtractor(ast.NodeVisitor):
         self.add_name(node.name, (ClassName, class_scope, node), node.lineno)
 
     def visit_Assign(self, node):
-        if isinstance(node.targets[0], ast.Tuple):
-            targets = enumerate(node.targets[0].elts)
-        else:
-            targets = ((None, r) for r in node.targets)
+        value = Value(self.scope, node.value)
 
-        for i, n in targets:
+        for n, idx in self.get_indexes_for_target(node.targets[0], [], []):
             if isinstance(n,  ast.Name):
-                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value), n.lineno), n.lineno)
+                self.add_name(n.id, (AssignedName, idx, value, n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):
                 self.subscript_assignments.append((n.value, n.slice, node.value))
 

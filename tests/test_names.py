@@ -1,4 +1,5 @@
 from supplement.scope import get_scope_at
+from supplement.evaluator import infer
 from supplement.names import ArgumentName
 
 from .helpers import pytest_funcarg__project, cleantabs
@@ -134,20 +135,20 @@ def test_assign_to_attribute_of_attribute(project):
 
 def test_for_names(project):
     source = cleantabs('''
-        for n, (m, l) in []:
+        for n, (m, l) in [('', ({}, []))]:
             pass
     ''')
 
     scope = get_scope_at(project, source, 2)
 
     obj = scope.get_name('n')
-    assert obj
+    assert 'lower' in obj
 
     obj = scope.get_name('m')
-    assert obj
+    assert 'keys' in obj
 
     obj = scope.get_name('l')
-    assert obj
+    assert 'append' in obj
 
 def test_method_name_call_should_resolve_self_properly(project):
     source = cleantabs('''
@@ -163,3 +164,17 @@ def test_method_name_call_should_resolve_self_properly(project):
     scope = get_scope_at(project, source, 8)
     obj = scope.get_name('result')
     assert 'lower' in obj
+
+def test_pattern_matching(project):
+    scope = project.create_scope('''
+        a, [b, c] = [{}, ["", []]]
+    ''')
+
+    obj = scope['a']
+    assert 'keys' in obj
+
+    obj = scope['b']
+    assert 'lower' in obj
+
+    obj = scope['c']
+    assert 'append' in obj

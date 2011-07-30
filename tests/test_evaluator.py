@@ -299,3 +299,6 @@ def test_function_call_with_starargs(project):
 def test_compare_expression(scope):
     obj = infer("5 in (1,2,3)", scope, 100)
     assert 'bit_length' in obj
+
+def test_generator_expression(project):
+    pass

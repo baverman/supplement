@@ -35,6 +35,14 @@ class Indexable(Object):
 
         return value.get_object()
 
+    def op_common_item(self):
+        try:
+            value = self.values[0]
+        except IndexError:
+            return UnknownObject()
+
+        return value.get_object()
+
     def get_names(self):
         return self.object.get_names()
 

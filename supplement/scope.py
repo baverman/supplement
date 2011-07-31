@@ -29,6 +29,7 @@ class Scope(object):
         self.parent = parent
         self._attrs = {}
         self.type = scope_type
+        self.node2scope = {}
 
         if parent:
             self.project = parent.project
@@ -181,15 +182,26 @@ class Scope(object):
         while parent and end and lineno >= end - cadd:
             node, end, parent = parent
 
+        try:
+            return self.node2scope[node]
+        except KeyError:
+            pass
+
         for s in traverse_tree(self):
             if s.node is node:
+                self.node2scope[node] = s
                 return s
 
-        raise Exception("Scope at line %d not found" % lineno)
+        raise Exception('Scope for line %d not found' % lineno)
 
 
 SCOPE_CLASSES = (ast.ClassDef, ast.FunctionDef, ast.ExceptHandler, ast.With, ast.Module)
+BLOCK_CLASSES = SCOPE_CLASSES + (ast.TryExcept, ast.TryFinally, ast.If, ast.While, ast.For)
+
 def collect_scope_ranges(root, ranges, toclose, parent=None):
+    if not isinstance(root, BLOCK_CLASSES):
+        return
+
     isscope = isinstance(root, SCOPE_CLASSES)
     if isscope:
         lrange = [root, None, parent]

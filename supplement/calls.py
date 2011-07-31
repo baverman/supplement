@@ -16,6 +16,12 @@ class CallExtractor(ast.NodeVisitor):
     def visit_ClassDef(self, node):
         pass
 
+    def visit_ExceptHandler(self, node):
+        pass
+
+    def visit_With(self, node):
+        pass
+
     def visit_Call(self, node):
         self.calls.append((node.lineno, node.func, node.args))
         self.generic_visit(node)

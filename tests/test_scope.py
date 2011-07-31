@@ -2,9 +2,9 @@ from supplement.scope import get_scope_at
 
 from .helpers import cleantabs, pytest_funcarg__project
 
-def check_scope(project, source, names):
+def check_scope(project, source, names, cont=True):
     def check(line, name):
-        result = get_scope_at(project, source, line).fullname
+        result = get_scope_at(project, source, line, continous=cont).fullname
         assert result == name, "[%s] must be [%s] at line %d" % (result, name, line)
 
     for line, name in names.iteritems():
@@ -33,7 +33,8 @@ def test_function_scope(project):
         2: '',
         3: 'func',
         4: 'func',
-        5: 'func'
+        5: 'func',
+        6: ''
     })
 
 def test_nested_scopes(project):
@@ -100,3 +101,32 @@ def test_eof_scope(project):
         2: 'func',
         3: 'func',
     })
+
+def test_non_continous_scope(project):
+    source = cleantabs("""
+        class Cls(object):
+
+            def m1(self):
+                pass
+
+            @staticmethod
+            def m2():
+                pass
+
+
+        class Klass(object):
+            pass
+
+    """)
+
+    check_scope(project, source, {
+        1: 'Cls',
+        2: 'Cls',
+        3: 'Cls.m1',
+        5: 'Cls',
+        6: 'Cls.m2',
+        7: 'Cls.m2',
+        9: '',
+        10: '',
+        11: 'Klass',
+    }, False)

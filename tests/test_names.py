@@ -173,6 +173,7 @@ def test_name_introduced_by_except_clause(project):
         try:
             pass
         except Exc, e:
+            1 == 2
             pass|
 
         code
@@ -185,7 +186,7 @@ def test_name_introduced_by_except_clause(project):
     result = scope2.get_names(line2)
     assert 'e' not in result
 
-def test_assist_with_as_statement(project):
+def test_name_introduced_by_with_statement(project):
     scope1, line1, scope2, line2 = project.create_scope('''
         with open("fname") as f:
             pass|
@@ -194,7 +195,8 @@ def test_assist_with_as_statement(project):
         |
     ''')
 
-    assert scope1['f']
+    obj = scope1.get_name('f', line1)
+    assert obj
 
     result = scope2.get_names(line2)
     assert 'f' not in result

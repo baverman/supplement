@@ -2,7 +2,8 @@ import ast
 import logging
 
 from .tree import ReturnExtractor
-from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject
+from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject, \
+    create_object_from_seq_item
 
 
 class Valuable(object):
@@ -333,17 +334,6 @@ class AttributesAssignsExtractor(ast.NodeVisitor):
         return self.result
 
 
-def create_object_from_class_name(scope, name):
-    from .objects import FakeInstanceObject
-    return FakeInstanceObject(scope.eval(name, False))
-
-def create_object_from_expr(scope, expr):
-    return scope.eval(expr, False)
-
-def create_object_from_seq_item(scope, expr):
-    seq = scope.eval(expr, False)
-    return seq.op_common_item()
-
 class NameExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         function_scope = self.scope.get_child_by_lineno(node.lineno)
@@ -418,20 +408,6 @@ class NameExtractor(ast.NodeVisitor):
         if node.kwarg:
             self.scope.kwarg = node.kwarg
             self.add_name(node.kwarg, (KwargName, self.scope), self.scope.node.lineno)
-
-    def visit_ExceptHandler(self, node):
-        if node.name:
-            self.add_name(node.name.id,
-                (create_object_from_class_name, self.scope, node.type), node.lineno)
-
-        self.generic_visit(node)
-
-    def visit_With(self, node):
-        if node.optional_vars:
-            self.add_name(node.optional_vars.id,
-                (create_object_from_expr, self.scope, node.context_expr), node.lineno)
-
-        self.generic_visit(node)
 
     def add_name(self, name, value, lineno):
         if name in self.names:

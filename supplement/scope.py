@@ -31,6 +31,9 @@ class Scope(object):
         self.type = scope_type
         self.node2scope = {}
 
+        if scope_type == 'module':
+            node.lineno = 0
+
         if parent:
             self.project = parent.project
             self.filename = parent.filename
@@ -205,7 +208,7 @@ def collect_scope_ranges(root, ranges, toclose, parent=None):
     isscope = isinstance(root, SCOPE_CLASSES)
     if isscope:
         lrange = [root, None, parent]
-        ranges[0].append(getattr(root, 'lineno', 0))
+        ranges[0].append(root.lineno)
         ranges[1].append(lrange)
         parent = lrange
 

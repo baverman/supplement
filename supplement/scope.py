@@ -191,8 +191,6 @@ class Scope(object):
 SCOPE_CLASSES = (ast.ClassDef, ast.FunctionDef, ast.ExceptHandler, ast.With, ast.Module)
 def collect_scope_ranges(root, ranges, toclose, parent=None):
     isscope = isinstance(root, SCOPE_CLASSES)
-    isscope = isscope and (type(root) is not ast.ExceptHandler or root.name)
-    isscope = isscope and (type(root) is not ast.With or root.optional_vars)
     if isscope:
         lrange = [root, None, parent]
         ranges[0].append(getattr(root, 'lineno', 0))
@@ -330,18 +328,18 @@ class ScopeExtractor(ast.NodeVisitor):
         self.children.append(scope)
 
     def visit_ExceptHandler(self, node):
+        scope = InnerScope(node, self.scope)
         if node.name:
-            scope = InnerScope(node, self.scope)
             scope.add_name(node.name.id, PostponedName(self.scope,
                 create_object_from_class_name, self.scope, node.type))
-            self.children.append(scope)
+        self.children.append(scope)
 
     def visit_With(self, node):
+        scope = InnerScope(node, self.scope)
         if node.optional_vars:
-            scope = InnerScope(node, self.scope)
             scope.add_name(node.optional_vars.id, PostponedName(self.scope,
                 create_object_from_expr, self.scope, node.context_expr))
-            self.children.append(scope)
+        self.children.append(scope)
 
     def visit_ClassDef(self, node):
         scope = Scope(node, node.name, self.scope, 'class')

@@ -20,8 +20,9 @@ class Server(object):
         self.projects[path] = self.create_project(path)
 
     def create_project(self, path):
+        config = self.configs.get(path, {})
+        config.setdefault('hooks', []).insert(0, 'supplement.hooks.override')
         p = Project(path, self.configs.get(path, {}), monitor=self.monitor)
-        p.register_hook('supplement.hooks.override')
         return p
 
     def get_project(self, path):

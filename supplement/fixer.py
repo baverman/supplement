@@ -52,7 +52,7 @@ def fix(code, tries=10):
 
         code = code.splitlines()
 
-        if e.text.strip().startswith('except '):
+        if e.text and e.text.strip().startswith('except '):
             code[e.lineno - 1] = code[e.lineno - 1][:e.offset] + ': pass'
             result = code
         else:

@@ -60,3 +60,15 @@ def test_recursive_name_defenition(project):
             code = code.replace(pyrex.group(1), "b")
             code.|
     ''')
+
+#def test_snaked(project):
+#    project.set_root('/home/bobrov/work/snaked')
+#
+#    result = do_assist(project, '''
+#        from . import prefs
+#
+#        prefs.|
+#    ''', '/home/bobrov/work/snaked/snaked/core/test.py')
+#
+#    print result
+#    assert False

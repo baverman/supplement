@@ -80,7 +80,11 @@ class ImportedName(GetObjectDelegate):
         except KeyError:
             pass
 
-        return self.project.get_module(self.module_name + '.' + self.name, self.filename)
+        mname = self.module_name
+        if mname[-1] == '.':
+            mname = mname[:-1]
+
+        return self.project.get_module(mname + '.' + self.name, self.filename)
 
 
 class AssignedName(GetObjectDelegate):

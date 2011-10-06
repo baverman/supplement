@@ -327,6 +327,9 @@ def get_location(project, source, position, filename):
 
     elif ctx_type in ('import', 'from-import'):
         if ctx:
+            if ctx[-1] == '.':
+                ctx = ctx[:-1]
+
             module_name = ctx + '.' + match
         else:
             module_name = match

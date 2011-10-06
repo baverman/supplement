@@ -199,6 +199,18 @@ def test_assist_for_imported_names_attributes(project):
     assert 'lower' in result
     assert 'isdigit' in result
 
+def test_assist_for_imported_aliases(project):
+    project.create_module('toimport', '''
+        class Boo(object):
+            boo = 1
+    ''')
+
+    result = do_assist(project, '''
+        from toimport import Boo as Foo
+        Foo.''')
+
+    assert 'boo' in result
+
 def test_assist_after_curve_brackets(project):
     result = do_assist(project, '''{1:()}.''')
     assert 'iterkeys' in result

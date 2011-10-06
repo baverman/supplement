@@ -211,6 +211,19 @@ def test_assist_for_imported_aliases(project):
 
     assert 'boo' in result
 
+def test_assist_for_one_dot_import(project):
+    project.create_module('package.toimport', '''
+        class Boo(object):
+            boo = 1
+    ''')
+
+    result = do_assist(project, '''
+        from . import toimport
+        toimport.Boo.|
+    ''', filename='package/test.py')
+
+    assert 'boo' in result
+
 def test_assist_after_curve_brackets(project):
     result = do_assist(project, '''{1:()}.''')
     assert 'iterkeys' in result

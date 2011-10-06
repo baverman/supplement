@@ -341,7 +341,7 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node):
         for n in node.names:
-            module_name = '.' * node.level + node.module
+            module_name = '.' * node.level + (node.module if node.module else '')
             if n.name == '*':
                 self.starred_imports.append((module_name, node.lineno))
             else:

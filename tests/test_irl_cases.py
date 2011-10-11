@@ -65,9 +65,9 @@ def test_recursive_name_defenition(project):
 #    project.set_root('/home/bobrov/work/snaked')
 #
 #    result = do_assist(project, '''
-#        from . import prefs
+#        from . import window
 #
-#        prefs.|
+#        window.Window().|
 #    ''', '/home/bobrov/work/snaked/snaked/core/test.py')
 #
 #    print result

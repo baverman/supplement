@@ -1,7 +1,8 @@
 import sys
-from os.path import dirname, basename, exists, join, isfile, isdir
+from os.path import dirname, basename, exists, join, isfile, isdir, normpath, abspath
 import os
 import logging
+import imp
 
 from .objects import create_object
 from .tree import NodeProvider
@@ -11,6 +12,7 @@ class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
         self.override = []
+        self.root_modules = {}
 
     def add_override(self, override):
         self.override.append(override)
@@ -28,13 +30,59 @@ class ModuleProvider(object):
         else:
             m.invalidate()
 
-    def get(self, project, name):
+    def invalidate_root_module(self, filename, module_name):
+        try:
+            del self.root_modules[module_name]
+        except KeyError:
+            pass
+
+    def get_root_module(self, project, name, path):
+        key = (name, path)
+        try:
+            return self.root_modules[key]
+        except KeyError:
+            pass
+
+        filename = join(path, name, '__init__.py')
+        m = imp.new_module(name)
+        m.__file__ = filename
+        m.__package__ = name
+        m.__path__ = [join(path, name)]
+
+        execfile(filename, m.__dict__)
+
+        self.root_modules[key] = m
+
+        project.monitor.monitor(filename, self.invalidate_root_module, name)
+        return m
+
+    def get_absolute_name(self, project, name, filename):
+        package_path = None
+        if name[0] == '.':
+            assert filename, 'You should provide source filename to resolve relative imports'
+
+            package_name, package_path = project.package_resolver.get(normpath(abspath(dirname(filename))))
+            level = len(name) - len(name.lstrip('.')) - 1
+            parts = package_name.split('.')
+            name = '.'.join(parts[:len(parts)-level]) + (name[level:] if len(name) > level + 1 else '')
+        else:
+            if filename and exists(join(dirname(filename), '__init__.py')):
+                pkg_dir = dirname(filename)
+                if exists(join(pkg_dir, name+'.py')):
+                    package_name, package_path = project.package_resolver.get(normpath(abspath(pkg_dir)))
+                    name = package_name + '.' + name
+
+        return name, package_path
+
+    def get(self, project, name, filename=None):
+        name, ppath = self.get_absolute_name(project, name, filename)
+
         try:
             return self.cache[name]
         except KeyError:
             pass
 
-        m = Module(project, name)
+        m = Module(project, name, ppath)
         for o in self.override:
             m = o(project, m)
 
@@ -49,15 +97,18 @@ class ModuleProvider(object):
 
 def get_possible_project_modules(project):
     for s in project.sources:
-        for n in os.listdir(s):
-            fname = join(s, n)
-            if isdir(fname) and exists(join(fname, '__init__.py')):
-                yield n
+        if exists(join(s, '__init__.py')):
+            yield basename(s)
+        else:
+            for n in os.listdir(s):
+                fname = join(s, n)
+                if isdir(fname) and exists(join(fname, '__init__.py')):
+                    yield n
 
-            if isfile(fname) and n.endswith('.py'):
-                yield n[:-3]
+                if isfile(fname) and n.endswith('.py'):
+                    yield n[:-3]
 
-def load_module(project, name):
+def load_module(project, name, package_path):
     pi = set(get_possible_project_modules(project))
 
     bad_modules = {}
@@ -78,7 +129,20 @@ def load_module(project, name):
 
     oldsyspath = sys.path
     sys.path = project.paths
+
     try:
+        if package_path and package_path not in sys.path:
+            pkg_name, _, tail = name.partition('.')
+
+            root_module = project.module_providers['default'].get_root_module(
+                project, pkg_name, package_path)
+
+            if tail:
+                pi.add(pkg_name)
+                sys.modules[pkg_name] = root_module
+            else:
+                return root_module
+
         __import__(name)
         return sys.modules[name]
     except ImportError:
@@ -124,8 +188,8 @@ class PackageResolver(object):
 
             ppath = newpath
 
-        package = self.cache[path] = '.'.join(reversed(packages))
-        return package
+        result = self.cache[path] = '.'.join(reversed(packages)), ppath
+        return result
 
 
 class ModuleNodeProvider(NodeProvider):
@@ -137,9 +201,10 @@ class ModuleNodeProvider(NodeProvider):
 
 
 class Module(object):
-    def __init__(self, project, name):
+    def __init__(self, project, name, package_path=None):
         self.project = project
         self.name = name
+        self.package_path = package_path
         self._attrs = {}
         self.node_provider = ModuleNodeProvider(self)
 
@@ -155,7 +220,7 @@ class Module(object):
             pass
 
         logging.getLogger(__name__).info('Try to import %s', self.name)
-        self._module = load_module(self.project, self.name)
+        self._module = load_module(self.project, self.name, self.package_path)
 
         return self._module
 

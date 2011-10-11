@@ -1,5 +1,5 @@
 import sys, os
-from os.path import abspath, join, isdir, isfile, exists, normpath, dirname
+from os.path import abspath, join, isdir, isfile, exists, dirname
 import logging
 
 from .tree import AstProvider
@@ -47,28 +47,14 @@ class Project(object):
         self.paths.extend(sys.path)
 
     def get_module(self, name, filename=None):
-        # TODO very weak decision.
-        # Should move relative python modules handling into appropriate class
         ctx, sep, name = name.partition(':')
         if not sep:
             ctx, name = 'default', ctx
 
-        if name[0] == '.':
-            if not filename:
-                raise Exception('You should provide source filename to resolve relative imports')
-
-            package_name = self.package_resolver.get(normpath(abspath(dirname(filename))))
-            level = len(name) - len(name.lstrip('.')) - 1
-            parts = package_name.split('.')
-            name = '.'.join(parts[:len(parts)-level]) + (name[level:] if len(name) > level + 1 else '')
-
-        if filename and exists(join(dirname(filename), '__init__.py')):
-            pkg_dir = dirname(filename)
-            if exists(join(pkg_dir, name+'.py')):
-                package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))
-                name = package_name + '.' + name
-
-        return self.module_providers[ctx].get(self, name)
+        if filename:
+            return self.module_providers[ctx].get(self, name, filename)
+        else:
+            return self.module_providers[ctx].get(self, name)
 
     def get_ast(self, module):
         return self.ast_provider.get(module)

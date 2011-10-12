@@ -36,7 +36,7 @@ class OverrideModule(Module):
         self._module = imp.new_module(self.name)
         self._module.__orig__ = self.overrided_module.module
         self._module.__file__ = self._filename
-        execfile(self._filename, self._module.__dict__)
+        exec(compile(open(self._filename).read(), self._filename, 'exec'), self._module.__dict__)
 
         return self._module
 

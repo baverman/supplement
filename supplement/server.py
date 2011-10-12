@@ -1,5 +1,5 @@
 import sys
-from cPickle import loads, dumps
+from pickle import loads, dumps
 
 from supplement.project import Project
 from supplement.assistant import assist, get_location, get_docstring
@@ -38,7 +38,7 @@ class Server(object):
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             import traceback
             traceback.print_exc()
             is_ok = False

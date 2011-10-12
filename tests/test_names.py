@@ -14,7 +14,7 @@ def test_name_reassigning_in_topmost_scope(project):
     assert 'append' in obj
 
     obj = scope['test']
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
 def test_name_reassigning_in_inner_scope(project):
     scope, line = project.create_scope('''
@@ -29,7 +29,7 @@ def test_name_reassigning_in_inner_scope(project):
     assert 'append' in obj
 
     obj = scope['test']
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
 def test_argument_reassigning(project):
     scope, line = project.create_scope('''
@@ -42,7 +42,7 @@ def test_argument_reassigning(project):
     assert isinstance(obj, ArgumentName)
 
     obj = scope['test']
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
 
 def test_attributes_of_inherited_class(project):
@@ -172,7 +172,7 @@ def test_name_introduced_by_except_clause(project):
 
         try:
             pass
-        except Exc, e:
+        except Exc as e:
             1 == 2
             pass|
 

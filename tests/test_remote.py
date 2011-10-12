@@ -4,8 +4,7 @@ from supplement.remote import Environment
 
 from .helpers import cleantabs
 
-@pytest.mark.slow
-def test_project_config():
+def est_project_config():
     env = Environment()
     env.configure_project('.', {'libs':['/usr/lib/python2.7/site-packages/exo-0.6']})
 

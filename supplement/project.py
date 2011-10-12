@@ -69,7 +69,7 @@ class Project(object):
             m = self.get_module(start, filename)
 
             sub_package_prefix = m.module.__name__ + '.'
-            for name, module in sys.modules.iteritems():
+            for name, module in sys.modules.items():
                 if module and name.startswith(sub_package_prefix):
                     result.add(name[len(sub_package_prefix):])
 

@@ -155,7 +155,7 @@ class FunctionName(NodeLocation, Object):
                     result = self.scope.get_call_scope(args).eval(rvalue, False)
                     if result and type(result) is not Object:
                         return result
-                except RecursiveCallException, e:
+                except RecursiveCallException as e:
                     if not e.is_called_by(self):
                         raise
         finally:
@@ -227,7 +227,7 @@ class ClassName(NodeLocation, Object):
             self._assigned_attributes
         except AttributeError:
             self._assigned_attributes = {}
-            for name, loc in self.scope.get_names().iteritems():
+            for name, loc in self.scope.get_names().items():
                 for line, args in loc:
                     if args[0] == FunctionName:
                         func = self.scope.get_name(name, line)
@@ -241,7 +241,7 @@ class ClassName(NodeLocation, Object):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().iteritems():
+            for attr, value in cls.get_assigned_attributes().items():
                 if attr not in result:
                     result[attr] = value
 
@@ -354,7 +354,7 @@ class NameExtractor(ast.NodeVisitor):
     def visit_Import(self, node):
         for n in node.names:
             if n.asname:
-                self.names[n.asname] = ModuleName, n.name
+                self.add_name(n.asname, (ModuleName, n.name, set()), node.lineno)
             else:
                 name, _, tail = n.name.partition('.')
                 self.add_name(name, (ModuleName, name, set()), node.lineno)
@@ -398,8 +398,8 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):
-            self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
-            self.scope.args[i] = n.id
+            self.add_name(n.arg, (ArgumentName, self.scope, i, n.arg), self.scope.node.lineno)
+            self.scope.args[i] = n.arg
 
         for d in node.defaults:
             self.scope.defaults.append(Value(self.scope.parent, d))
@@ -429,7 +429,7 @@ class NameExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-        for k, v in self.additional_imports.iteritems():
+        for k, v in self.additional_imports.items():
             for line, name in self.names[k]:
                 if name[0] is not ModuleName:
                     continue

@@ -105,7 +105,7 @@ class Scope(object):
             return self._names
 
         result = []
-        for name, names in self._names.iteritems():
+        for name, names in self._names.items():
             if any(line <= lineno for line, _ in names):
                 result.append(name)
 
@@ -159,7 +159,7 @@ class Scope(object):
             except KeyError:
                 scope = scope.parent
 
-        return self.project.get_module('__builtin__')[name]
+        return self.project.get_module('builtins')[name]
 
     def get_scope_at(self, source, lineno, continous=True):
         try:
@@ -345,7 +345,7 @@ class ScopeExtractor(ast.NodeVisitor):
     def visit_ExceptHandler(self, node):
         scope = InnerScope(node, self.scope)
         if node.name:
-            scope.add_name(node.name.id, PostponedName(self.scope,
+            scope.add_name(node.name, PostponedName(self.scope,
                 create_object_from_class_name, self.scope, node.type))
         self.children.append(scope)
 

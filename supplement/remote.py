@@ -21,7 +21,10 @@ class Environment(object):
         from subprocess import Popen
         from multiprocessing.connection import Client, arbitrary_address
 
-        addr = arbitrary_address('AF_UNIX')
+        if sys.platform == 'win32':
+            addr = arbitrary_address('AF_PIPE')
+        else:
+            addr = arbitrary_address('AF_UNIX')
 
         args = [self.executable, '-m', 'supplement.server', addr]
 
@@ -31,13 +34,18 @@ class Environment(object):
             env.update(self.env)
 
         self.proc = Popen(args, env=env)
-        start = time.time()
-        while not os.path.exists(addr):
-            if time.time() - start > 5:
-                raise Exception('Supplement server launching timeout exceed')
-            time.sleep(0.1)
 
-        self.conn = Client(addr)
+        start = time.time()
+        while True:
+            try:
+                self.conn = Client(addr)
+            except Exception, e:
+                if time.time() - start > 5:
+                    raise Exception('Supplement server launching timeout exceed: ' + str(e))
+
+                time.sleep(0.3)
+            else:
+                break
 
     def _call(self, name, *args, **kwargs):
         try:

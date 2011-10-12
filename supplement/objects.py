@@ -1,5 +1,5 @@
 import logging
-from types import FunctionType, ClassType, ModuleType, BuiltinFunctionType
+from types import FunctionType, ModuleType, BuiltinFunctionType
 from inspect import getargspec, getdoc
 
 from .tree import CtxNodeProvider
@@ -187,7 +187,7 @@ class ClassObject(LocationObject):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().iteritems():
+            for attr, value in cls.get_assigned_attributes().items():
                 if attr not in result:
                     result[attr] = value
 
@@ -200,6 +200,9 @@ class ClassObject(LocationObject):
             return name, args[1:], vararg, kwarg, defaults
         else:
             return None
+
+    def get_docstring(self):
+        return getdoc(self.cls)
 
 
 class FakeInstanceObject(Object):
@@ -275,7 +278,7 @@ class InstanceObject(LocationObject):
         else:
             try:
                 value = self.obj[idx]
-            except Exception, e:
+            except Exception as e:
                 logging.getLogger(__name__).error(e)
             else:
                 return create_object(self, value)
@@ -319,7 +322,7 @@ def create_object(owner, obj, node=None):
     elif obj_type == ModuleType:
         return owner.project.get_module(obj.__name__)
 
-    elif obj_type == ClassType or issubclass(obj_type, type):
+    elif issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
 
     elif obj_type == FunctionType or obj_type == BuiltinFunctionType or obj_type == MethodDescriptor:

@@ -1,6 +1,6 @@
 from supplement.watcher import DummyMonitor
 
-def test_watcher_must_call_uniq_handlers_on_file_change(tmpdir):
+def test_watcher_must_call_uniq_handlers_on_file_change():
     fname = 'test.py'
 
     # Wrap list with hashable object

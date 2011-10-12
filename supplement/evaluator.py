@@ -73,7 +73,7 @@ class Dict(Object):
             idx = idx.get_value()
         except AttributeError:
             if data:
-                idx = data.keys()[0]
+                idx = list(data.keys())[0]
             else:
                 return UnknownObject()
 
@@ -207,7 +207,7 @@ class Evaluator(ast.NodeVisitor):
                 raise Exception('invalid eval stack:', repr(self.stack))
         except RecursiveCallException:
             raise
-        except Exception, e:
+        except Exception as e:
             if not getattr(e, '_processed', None):
                 logging.getLogger(__name__).exception('Boo')
                 from .tree import dump_tree

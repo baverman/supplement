@@ -42,7 +42,7 @@ def test_eval_of_assigned_name(project):
     """)
 
     obj = infer('d', scope)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
     assert 'Class' not in obj.get_object().__class__.__name__
 
 def test_eval_of_multi_assigned_name_from_tuple(project):
@@ -51,7 +51,7 @@ def test_eval_of_multi_assigned_name_from_tuple(project):
     """)
 
     obj = infer('d', scope)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
     obj = infer('l', scope)
     assert 'append' in obj
@@ -62,7 +62,7 @@ def test_eval_of_multi_assigned_name_from_list(project):
     """)
 
     obj = infer('d', scope)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
     obj = infer('l', scope)
     assert 'append' in obj
@@ -78,7 +78,7 @@ def test_eval_of_multi_assigned_name_from_imported_seq(project):
     ''')
 
     obj = infer('d', scope, 3)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
     obj = infer('l', scope, 3)
     assert 'append' in obj
@@ -91,7 +91,7 @@ def test_eval_of_seq_item_get(project):
     ''')
 
     obj = infer('d', scope, 4)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
     obj = infer('l', scope, 4)
     assert 'append' in obj
@@ -104,7 +104,7 @@ def test_eval_of_dict_item_get(project):
     ''')
 
     obj = infer('d', scope, 4)
-    assert 'iterkeys' in obj
+    assert 'keys' in obj
 
     obj = infer('l', scope, 4)
     assert 'append' in obj

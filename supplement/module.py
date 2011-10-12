@@ -84,7 +84,7 @@ def load_module(project, name, package_path):
     pi = set(get_possible_project_modules(project))
 
     bad_modules = {}
-    for k, v in sys.modules.items():
+    for k, v in list(sys.modules.items()):
         try:
             v.__file__
         except AttributeError:
@@ -114,7 +114,7 @@ def load_module(project, name, package_path):
     finally:
         sys.path = oldsyspath
 
-        for k, v in sys.modules.items():
+        for k, v in list(sys.modules.items()):
             try:
                 v.__file__
             except AttributeError:

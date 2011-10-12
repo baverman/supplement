@@ -1,7 +1,7 @@
 import sys
 import os.path
 import time
-from cPickle import dumps
+from pickle import dumps
 
 class Environment(object):
     """Supplement server client"""

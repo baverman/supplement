@@ -6,6 +6,15 @@ from .helpers import pytest_funcarg__project, do_assist, cleantabs
 
 def test_encoding_sanitization():
     tree, source = fix(sanitize_encoding(u'# coding: utf-8\n\n\n"вау"'))
+    assert source == u'# codang: utf-8\n\n\n"вау"'
+
+def test_sanitize_encoding_must_be_able_to_handle_one_line():
+    source = sanitize_encoding(u'# coding: utf-8')
+    assert source == u'# codang: utf-8'
+
+def test_sanitize_encoding_must_not_change_source_after_third_line():
+    source = sanitize_encoding(u'# coding: utf-8\n\n\ncoding="utf-8"')
+    assert source == u'# codang: utf-8\n\n\ncoding="utf-8"'
 
 def test_not_closed_except(project):
     result = do_assist(project, '''

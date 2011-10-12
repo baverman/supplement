@@ -11,8 +11,8 @@ def get_ws_len(line):
 
 def sanitize_encoding(source):
     if isinstance(source, unicode):
-        parts = source.split(u'\n', 3)
-        for i in range(2):
+        parts = source.split(u'\n', 4)
+        for i in range(min(3, len(parts))):
             parts[i] = parts[i].replace(u'coding=', u'codang=').replace(u'coding:', u'codang:')
 
         return u'\n'.join(parts)

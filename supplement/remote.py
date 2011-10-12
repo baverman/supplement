@@ -39,7 +39,7 @@ class Environment(object):
         while True:
             try:
                 self.conn = Client(addr)
-            except Exception, e:
+            except Exception as e:
                 if time.time() - start > 5:
                     raise Exception('Supplement server launching timeout exceed: ' + str(e))
 

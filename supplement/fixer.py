@@ -11,9 +11,9 @@ def get_ws_len(line):
 
 def sanitize_encoding(source):
     if isinstance(source, str):
-        parts = source.split('\n', 3)
-        for i, p in enumerate(parts[:3]):
-            parts[i] = p.replace('coding=', 'codang=').replace('coding:', 'codang:')
+        parts = source.split('\n', 4)
+        for i in range(min(3, len(parts))):
+            parts[i] = parts[i].replace('coding=', 'codang=').replace('coding:', 'codang:')
 
         return '\n'.join(parts)
     else:

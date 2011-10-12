@@ -47,6 +47,7 @@ class Project(object):
         self.paths.extend(sys.path)
 
     def get_module(self, name, filename=None):
+        assert name
         ctx, sep, name = name.partition(':')
         if not sep:
             ctx, name = 'default', ctx

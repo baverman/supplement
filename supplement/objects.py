@@ -40,8 +40,8 @@ class ImportedObject(GetObjectDelegate):
         self.node = node
 
     def get_object(self):
-        name, inode = self.node[1], self.node[2]
-        module = self.project.get_module(inode.module, self.filename)
+        name, mname = self.node[1:3]
+        module = self.project.get_module(mname, self.filename)
         return module[name]
 
 

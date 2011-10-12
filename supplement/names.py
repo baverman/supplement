@@ -333,7 +333,6 @@ class AttributesAssignsExtractor(ast.NodeVisitor):
         self.scope = scope
         self.name = name
         self.result = {}
-
         self.generic_visit(node)
         return self.result
 

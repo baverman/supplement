@@ -21,7 +21,7 @@ def create_module(project, name, source):
 
     exec code in module.__dict__
 
-    m = TestModule(project, name, None)
+    m = TestModule(project, name)
     m._module = module
     m.source = source
     module.__file__ = name + '.py'
@@ -33,8 +33,8 @@ def create_module(project, name, source):
 
     if package_name:
         module.__file__ = "%s/%s.py" % (package_path, module_name)
-        project.package_resolver.cache[os.path.abspath(package_name)] = package_name, package_path
-        p = TestModule(project, package_name, None)
+        project.package_resolver.cache[os.path.abspath(package_name)] = package_name
+        p = TestModule(project, package_name)
         p._module = sys.modules[package_name] = types.ModuleType(package_name)
         setattr(sys.modules[package_name], module_name, module)
         p._module.__file__ = "%s/__init__.py" % package_path

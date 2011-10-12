@@ -188,9 +188,14 @@ class Evaluator(ast.NodeVisitor):
     def process(self, tree, scope, skip_toplevel=True):
         #from .tree import dump_tree; print '!!!', scope.filename; print dump_tree(tree); print
 
+        if getattr(tree, '_evaluating', False):
+            return UnknownObject()
+
         self.scope = scope
         self.ops = []
         self.stack = []
+
+        tree._evaluating = True
 
         try:
             if skip_toplevel:
@@ -204,6 +209,7 @@ class Evaluator(ast.NodeVisitor):
             raise
         except Exception, e:
             if not getattr(e, '_processed', None):
+                logging.getLogger(__name__).exception('Boo')
                 from .tree import dump_tree
                 logger = logging.getLogger(__name__)
                 logger.exception('\n<<<<<<<<<<<<<<<<<')
@@ -212,5 +218,7 @@ class Evaluator(ast.NodeVisitor):
                 e._processed = True
 
             raise
+        finally:
+            tree._evaluating = False
 
         return self.stack[0]

@@ -112,6 +112,8 @@ class CallDB(object):
 
                 try:
                     func = s.eval(func, False)
+                except AssertionError:
+                    raise
                 except:
                     continue
 

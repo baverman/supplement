@@ -62,13 +62,10 @@ def test_recursive_name_defenition(project):
     ''')
 
 #def test_snaked(project):
-#    project.set_root('/home/bobrov/work/snaked')
-#
-#    result = do_assist(project, '''
-#        from . import window
-#
-#        window.Window().|
-#    ''', '/home/bobrov/work/snaked/snaked/core/test.py')
+#    project.set_root('/home/bobrov/work/bonent')
+#    fname = project.root + '/bparser/smscenter.py'
+#    source, pos = open(fname).read(), 524
+#    result = do_assist(project, source, fname)
 #
 #    print result
 #    assert False

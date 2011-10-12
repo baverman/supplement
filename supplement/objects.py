@@ -1,5 +1,5 @@
 import logging
-from types import FunctionType, ModuleType, BuiltinFunctionType
+from types import FunctionType, ClassType, ModuleType, BuiltinFunctionType
 from inspect import getargspec, getdoc
 
 from .tree import CtxNodeProvider
@@ -40,8 +40,8 @@ class ImportedObject(GetObjectDelegate):
         self.node = node
 
     def get_object(self):
-        name, inode = self.node[1], self.node[2]
-        module = self.project.get_module(inode.module, self.filename)
+        name, mname = self.node[1:3]
+        module = self.project.get_module(mname, self.filename)
         return module[name]
 
 
@@ -50,9 +50,17 @@ class FunctionObject(LocationObject):
         LocationObject.__init__(self, node)
         self.func = func
 
+    def __repr__(self):
+        return '<FunctionObject %s %s>' % (self.func.__name__, getattr(self, 'filename', 'No file'))
+
     def get_scope(self):
-        if getattr(self.func, '__module__', None):
-            module = self.project.get_module(self.func.__module__)
+        module = getattr(self, 'declared_in', None)
+        if not module:
+            module_name = getattr(self.func, '__module__', None)
+            if module_name:
+                module = self.project.get_module(module_name)
+
+        if module:
             code = getattr(self.func, '__code__', None)
             if code:
                 return module.get_scope_at(code.co_firstlineno)
@@ -179,7 +187,7 @@ class ClassObject(LocationObject):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().items():
+            for attr, value in cls.get_assigned_attributes().iteritems():
                 if attr not in result:
                     result[attr] = value
 
@@ -192,9 +200,6 @@ class ClassObject(LocationObject):
             return name, args[1:], vararg, kwarg, defaults
         else:
             return None
-
-    def get_docstring(self):
-        return getdoc(self.cls)
 
 
 class FakeInstanceObject(Object):
@@ -270,7 +275,7 @@ class InstanceObject(LocationObject):
         else:
             try:
                 value = self.obj[idx]
-            except Exception as e:
+            except Exception, e:
                 logging.getLogger(__name__).error(e)
             else:
                 return create_object(self, value)
@@ -314,7 +319,7 @@ def create_object(owner, obj, node=None):
     elif obj_type == ModuleType:
         return owner.project.get_module(obj.__name__)
 
-    elif issubclass(obj_type, type):
+    elif obj_type == ClassType or issubclass(obj_type, type):
         newobj = ClassObject(node, obj)
 
     elif obj_type == FunctionType or obj_type == BuiltinFunctionType or obj_type == MethodDescriptor:

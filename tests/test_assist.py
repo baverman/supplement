@@ -199,9 +199,34 @@ def test_assist_for_imported_names_attributes(project):
     assert 'lower' in result
     assert 'isdigit' in result
 
+def test_assist_for_imported_aliases(project):
+    project.create_module('toimport', '''
+        class Boo(object):
+            boo = 1
+    ''')
+
+    result = do_assist(project, '''
+        from toimport import Boo as Foo
+        Foo.''')
+
+    assert 'boo' in result
+
+def test_assist_for_one_dot_import(project):
+    project.create_module('package.toimport', '''
+        class Boo(object):
+            boo = 1
+    ''')
+
+    result = do_assist(project, '''
+        from . import toimport
+        toimport.Boo.|
+    ''', filename='package/test.py')
+
+    assert 'boo' in result
+
 def test_assist_after_curve_brackets(project):
     result = do_assist(project, '''{1:()}.''')
-    assert 'keys' in result
+    assert 'iterkeys' in result
 
 def test_assist_after_square_brackets(project):
     result = do_assist(project, '''[1].''')
@@ -217,7 +242,7 @@ def test_assist_for_dict_item(project):
 
 def test_assist_for_call(project):
     result = do_assist(project, '''dict().''')
-    assert 'keys' in result
+    assert 'iterkeys' in result
 
 def test_assist_for_module_imported_from_package(project):
     project.create_module('package.toimport', '''
@@ -278,7 +303,7 @@ def test_get_location_must_return_name_location_for_imported_names(project):
             pass
     ''')
 
-    source, pos = get_source_and_pos('''
+    source, pos = get_source_and_pos(u'''
         import toimport
         toimport.aa|a()
     ''')
@@ -288,7 +313,7 @@ def test_get_location_must_return_name_location_for_imported_names(project):
     assert line == 1
 
 def test_get_location_must_return_name_location_for_imported_modules(project):
-    source, pos = get_source_and_pos('''
+    source, pos = get_source_and_pos(u'''
         import sys
 
         def foo():
@@ -299,7 +324,7 @@ def test_get_location_must_return_name_location_for_imported_modules(project):
     assert fname == None
     assert line == None
 
-    source, pos = get_source_and_pos('''
+    source, pos = get_source_and_pos(u'''
         import os
         o|s
     ''')
@@ -308,22 +333,64 @@ def test_get_location_must_return_name_location_for_imported_modules(project):
     assert fname.endswith('os.py')
     assert line == 1
 
-def est_import_package_modules_from_init(project, tmpdir):
+def test_get_location_must_return_module_location_in_import_statements(project):
+    project.create_module('package.toimport', '''
+        #cmnt
+        name = 'test'
+    ''')
+
+    source, pos = get_source_and_pos('''
+        import packa|ge.module
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/__init__.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        import package.toimpo|rt
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from pack|age import toimport
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/__init__.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from package import toim|port
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 1
+
+    source, pos = get_source_and_pos('''
+        from package.toimport import na|me
+    ''')
+    line, fname = get_location(project, source, pos, 'test.py')
+    assert fname == 'package/toimport.py'
+    assert line == 2
+
+
+def test_import_package_modules_from_init(project, tmpdir):
     project.set_root(str(tmpdir))
     pkgdir = tmpdir.join('package')
     pkgdir.mkdir()
 
     source, pos = get_source_and_pos('''
-        import smodule
+        import module
 
         def foo():
-            smodule.n|
+            module.n|
     ''')
 
     pkg = pkgdir.join('__init__.py')
     pkg.write(source)
 
-    m = pkgdir.join('smodule.py')
+    m = pkgdir.join('module.py')
     m.write('name = []')
 
     match, result = assist(project, source, pos, str(pkg))
@@ -622,24 +689,3 @@ def test_get_location_for_assigned_names(project):
     line, fname = get_location(project, source, pos, None)
     assert line == 1
 
-def test_assist_in_except_clause(project):
-    result = do_assist(project, '''
-        class Exc(Exception):
-            def __init__(self):
-                self.msg = []
-
-        try:
-            pass
-        except Exc as e:
-            e.msg.a
-    ''')
-
-    assert 'append' in result
-
-def test_assist_with_as_statement(project):
-    result = do_assist(project, '''
-        with open("fname") as fobj:
-            f|
-    ''')
-
-    assert 'fobj' in result

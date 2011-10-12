@@ -1,5 +1,5 @@
 import sys, os
-from os.path import abspath, join, isdir, isfile, exists, normpath, dirname
+from os.path import abspath, join, isdir, isfile, exists, dirname
 import logging
 
 from .tree import AstProvider
@@ -22,7 +22,7 @@ class Project(object):
         self.package_resolver = PackageResolver()
         self.docstring_processors = []
 
-        self.override = [join(dirname(__file__), 'override')]
+        self.registered_hooks = set()
 
         for h in self.config.get('hooks', []):
             self.register_hook(h)
@@ -47,28 +47,15 @@ class Project(object):
         self.paths.extend(sys.path)
 
     def get_module(self, name, filename=None):
-        # TODO very weak decision.
-        # Should move relative python modules handling into appropriate class
+        assert name
         ctx, sep, name = name.partition(':')
         if not sep:
             ctx, name = 'default', ctx
 
-        if name[0] == '.':
-            if not filename:
-                raise Exception('You should provide source filename to resolve relative imports')
-
-            package_name = self.package_resolver.get(normpath(abspath(dirname(filename))))
-            level = len(name) - len(name.lstrip('.')) - 1
-            parts = package_name.split('.')
-            name = '.'.join(parts[:len(parts)-level]) + (name[level:] if len(name) > level + 1 else '')
-
-        if filename and exists(join(dirname(filename), '__init__.py')):
-            pkg_dir = dirname(filename)
-            if exists(join(pkg_dir, name+'.py')):
-                package_name = self.package_resolver.get(normpath(abspath(pkg_dir)))
-                name = package_name + '.' + name
-
-        return self.module_providers[ctx].get(self, name)
+        if filename:
+            return self.module_providers[ctx].get(self, name, filename)
+        else:
+            return self.module_providers[ctx].get(self, name)
 
     def get_ast(self, module):
         return self.ast_provider.get(module)
@@ -82,7 +69,7 @@ class Project(object):
             m = self.get_module(start, filename)
 
             sub_package_prefix = m.module.__name__ + '.'
-            for name, module in sys.modules.items():
+            for name, module in sys.modules.iteritems():
                 if module and name.startswith(sub_package_prefix):
                     result.add(name[len(sub_package_prefix):])
 
@@ -111,11 +98,14 @@ class Project(object):
         return result
 
     def register_hook(self, name):
-        try:
-            __import__(name)
-            sys.modules[name].init(self)
-        except:
-            logging.getLogger(__name__).exception('[%s] register failed' % name)
+        if name not in self.registered_hooks:
+            try:
+                __import__(name)
+                sys.modules[name].init(self)
+            except:
+                logging.getLogger(__name__).exception('[%s] hook register failed' % name)
+            else:
+                self.registered_hooks.add(name)
 
     def add_docstring_processor(self, processor):
         self.docstring_processors.append(processor)
@@ -139,6 +129,3 @@ class Project(object):
             return join(self.root, name[1:])
 
         return join(dirname(rel), name)
-
-    def add_override(self, path):
-        self.override.append(path)

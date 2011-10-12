@@ -1,25 +1,17 @@
 import sys
-from os.path import dirname, basename, exists, join, isfile, isdir
+from os.path import dirname, basename, exists, join, isfile, isdir, normpath, abspath
 import os
 import logging
+import imp
 
 from .objects import create_object
 from .tree import NodeProvider
 from .scope import Scope
 
-def override_fs(project, module):
-    name = module.name
-    for path in project.override:
-        fname = join(path, name + '.py')
-        if exists(fname):
-            module = OverrideModule(project, module, fname)
-
-    return module
-
 class ModuleProvider(object):
     def __init__(self):
         self.cache = {}
-        self.override = [override_fs]
+        self.override = []
 
     def add_override(self, override):
         self.override.append(override)
@@ -37,7 +29,26 @@ class ModuleProvider(object):
         else:
             m.invalidate()
 
-    def get(self, project, name):
+    def get_absolute_name(self, project, name, filename):
+        if name[0] == '.':
+            assert filename, 'You should provide source filename to resolve relative imports'
+
+            package_name = project.package_resolver.get(normpath(abspath(dirname(filename))))
+            level = len(name) - len(name.lstrip('.')) - 1
+            parts = package_name.split('.')
+            name = '.'.join(parts[:len(parts)-level]) + (name[level:] if len(name) > level + 1 else '')
+        else:
+            if filename and exists(join(dirname(filename), '__init__.py')):
+                pkg_dir = dirname(filename)
+                if exists(join(pkg_dir, name+'.py')):
+                    package_name = project.package_resolver.get(normpath(abspath(pkg_dir)))
+                    name = package_name + '.' + name
+
+        return name
+
+    def get(self, project, name, filename=None):
+        name = self.get_absolute_name(project, name, filename)
+
         try:
             return self.cache[name]
         except KeyError:
@@ -58,19 +69,22 @@ class ModuleProvider(object):
 
 def get_possible_project_modules(project):
     for s in project.sources:
-        for n in os.listdir(s):
-            fname = join(s, n)
-            if isdir(fname) and exists(join(fname, '__init__.py')):
-                yield n
+        if exists(join(s, '__init__.py')):
+            yield basename(s)
+        else:
+            for n in os.listdir(s):
+                fname = join(s, n)
+                if isdir(fname) and exists(join(fname, '__init__.py')):
+                    yield n
 
-            if isfile(fname) and n.endswith('.py'):
-                yield n[:-3]
+                if isfile(fname) and n.endswith('.py'):
+                    yield n[:-3]
 
-def load_module(project, name):
+def load_module(project, name, package_path):
     pi = set(get_possible_project_modules(project))
 
     bad_modules = {}
-    for k, v in list(sys.modules.items()):
+    for k, v in sys.modules.items():
         try:
             v.__file__
         except AttributeError:
@@ -87,6 +101,10 @@ def load_module(project, name):
 
     oldsyspath = sys.path
     sys.path = project.paths
+
+    if exists(join(project.root, '__init__.py')):
+        sys.path.insert(1, dirname(project.root))
+
     try:
         __import__(name)
         return sys.modules[name]
@@ -96,7 +114,7 @@ def load_module(project, name):
     finally:
         sys.path = oldsyspath
 
-        for k, v in list(sys.modules.items()):
+        for k, v in sys.modules.items():
             try:
                 v.__file__
             except AttributeError:
@@ -133,8 +151,8 @@ class PackageResolver(object):
 
             ppath = newpath
 
-        package = self.cache[path] = '.'.join(reversed(packages))
-        return package
+        result = self.cache[path] = '.'.join(reversed(packages))
+        return result
 
 
 class ModuleNodeProvider(NodeProvider):
@@ -146,9 +164,10 @@ class ModuleNodeProvider(NodeProvider):
 
 
 class Module(object):
-    def __init__(self, project, name):
+    def __init__(self, project, name, package_path=None):
         self.project = project
         self.name = name
+        self.package_path = package_path
         self._attrs = {}
         self.node_provider = ModuleNodeProvider(self)
 
@@ -164,7 +183,7 @@ class Module(object):
             pass
 
         logging.getLogger(__name__).info('Try to import %s', self.name)
-        self._module = load_module(self.project, self.name)
+        self._module = load_module(self.project, self.name, self.package_path)
 
         return self._module
 
@@ -219,6 +238,7 @@ class Module(object):
 
         obj = self._attrs[name] = create_object(self,
             getattr(self.module, name), self.node_provider[name])
+        obj.declared_in = self
 
         return obj
 
@@ -260,37 +280,3 @@ class DynScope(Scope):
 
         return Scope.get_name(self, name, lineno)
 
-class OverrideModule(Module):
-    def __init__(self, project, module, filename):
-        Module.__init__(self, project, module.name)
-        self._filename = filename
-        self.overrided_module = module
-
-    @property
-    def module(self):
-        try:
-            return self._module
-        except AttributeError:
-            pass
-
-        import imp
-        logging.getLogger(__name__).info('Try to override %s from %s', self.name, self._filename)
-        self._module = imp.new_module(self.name)
-        self._module.__orig__ = self.overrided_module.module
-        self._module.__file__ = self._filename
-        exec(open(self._filename).read(), self._module.__dict__)
-
-        return self._module
-
-    @property
-    def filename(self):
-        return self._filename
-
-    def get_names(self):
-        return Module.get_names(self).union(self.overrided_module.get_names())
-
-    def __getitem__(self, name):
-        try:
-            return Module.__getitem__(self, name)
-        except KeyError:
-            return self.overrided_module[name]

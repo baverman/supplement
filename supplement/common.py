@@ -38,6 +38,10 @@ class Object(object):
     def get_scope(self):
         return None
 
+    def op_common_item(self):
+        return UnknownObject()
+
+
 class GetObjectDelegate(object):
     def get_names(self):
         return self.get_object().get_names()
@@ -75,12 +79,15 @@ class GetObjectDelegate(object):
     def get_scope(self):
         return self.get_object().get_scope()
 
+    def op_common_item(self):
+        return self.get_object().op_common_item()
+
 
 class UnknownObject(Object): pass
 class NoneObject(Object): pass
 
 
-class Value(object):
+class Value(GetObjectDelegate):
     def __init__(self, scope, value):
         self.scope = scope
         self.value = value
@@ -146,3 +153,16 @@ class ListHolder(GetObjectDelegate):
 
     def op_getitem(self, idx):
         return self.values[idx.get_value()]
+
+
+def create_object_from_class_name(scope, name):
+    from .objects import FakeInstanceObject
+    return FakeInstanceObject(scope.eval(name, False))
+
+def create_object_from_expr(scope, expr):
+    return scope.eval(expr, False)
+
+def create_object_from_seq_item(scope, expr):
+    seq = scope.eval(expr, False)
+    return seq.op_common_item()
+

@@ -1,8 +1,5 @@
 import sys
-try:
-    from cPickle import loads, dumps
-except ImportError:
-    from pickle import loads, dumps
+from cPickle import loads, dumps
 
 from supplement.project import Project
 from supplement.assistant import assist, get_location, get_docstring
@@ -23,7 +20,10 @@ class Server(object):
         self.projects[path] = self.create_project(path)
 
     def create_project(self, path):
-        return Project(path, self.configs.get(path, {}), monitor=self.monitor)
+        config = self.configs.get(path, {})
+        config.setdefault('hooks', []).insert(0, 'supplement.hooks.override')
+        p = Project(path, self.configs.get(path, {}), monitor=self.monitor)
+        return p
 
     def get_project(self, path):
         try:
@@ -38,7 +38,7 @@ class Server(object):
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
-        except Exception as e:
+        except Exception, e:
             import traceback
             traceback.print_exc()
             is_ok = False

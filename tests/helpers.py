@@ -5,7 +5,7 @@ from supplement.module import Module
 from supplement.project import Project
 from supplement.fixer import fix
 from supplement.scope import Scope
-from supplement.assistant import assist
+from supplement.assistant import assist, get_docstring
 
 
 class TestModule(Module):
@@ -19,7 +19,7 @@ def create_module(project, name, source):
     module = types.ModuleType(name)
     sys.modules[name] = module
 
-    exec(code, module.__dict__)
+    exec code in module.__dict__
 
     m = TestModule(project, name)
     m._module = module
@@ -44,11 +44,29 @@ def create_module(project, name, source):
     return m
 
 def create_scope(project, code, filename=None):
-    ast, _ = fix(cleantabs(code))
+    source = cleantabs(code)
+    lines = []
+    pos = 0
+    while True:
+        pos = source.find('|', pos)
+        if pos >= 0:
+            lines.append(source.count('\n', 0, pos) + 1)
+            pos += 1
+        else:
+            break
+
+    ast, _ = fix(source.replace('|', ''))
     scope = Scope(ast, '', None, 'module')
     scope.project = project
     scope.filename = filename
-    return scope
+
+    if lines:
+        result = []
+        for line in lines:
+            result.extend([scope.get_scope_at(source, line), line])
+        return result
+    else:
+        return scope
 
 def set_project_root(project, root):
     project.root = root
@@ -93,3 +111,8 @@ def do_assist(project, source, filename=None):
     filename = filename or 'test.py'
     source, pos = get_source_and_pos(source)
     return assist(project, source, pos, filename)[1]
+
+def do_docstring(project, source, filename=None):
+    filename = filename or 'test.py'
+    source, pos = get_source_and_pos(source)
+    return get_docstring(project, source, pos, filename)

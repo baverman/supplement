@@ -2,7 +2,8 @@ import ast
 import logging
 
 from .tree import ReturnExtractor
-from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject
+from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject, \
+    create_object_from_seq_item
 
 
 class Valuable(object):
@@ -79,7 +80,11 @@ class ImportedName(GetObjectDelegate):
         except KeyError:
             pass
 
-        return self.project.get_module(self.module_name + '.' + self.name, self.filename)
+        mname = self.module_name
+        if mname[-1] == '.':
+            mname = mname[:-1]
+
+        return self.project.get_module(mname + '.' + self.name, self.filename)
 
 
 class AssignedName(GetObjectDelegate):
@@ -89,11 +94,14 @@ class AssignedName(GetObjectDelegate):
         self.lineno = lineno
 
     def get_object(self):
-        obj = self.value.get_object()
-        if self.idx is None:
-            return obj
+        if not self.idx:
+            return self.value
         else:
-            return obj.op_getitem(Valuable(self.idx))
+            obj = self.value
+            for idx in self.idx:
+                obj = obj.op_getitem(Valuable(idx))
+
+            return obj
 
     def get_location(self):
         obj = self.get_object()
@@ -101,6 +109,22 @@ class AssignedName(GetObjectDelegate):
             return obj.get_location()
         else:
             return self.lineno, self.filename
+
+
+class PostponedName(GetObjectDelegate):
+    def __init__(self, owner, *node):
+        self.owner = owner
+        self.node = node
+
+    def get_object(self):
+        try:
+            return self._object
+        except AttributeError:
+            pass
+
+        obj = self._object = create_name(self.node, self.owner)
+        return obj
+
 
 class RecursiveCallException(Exception):
     def __init__(self, obj):
@@ -131,7 +155,7 @@ class FunctionName(NodeLocation, Object):
                     result = self.scope.get_call_scope(args).eval(rvalue, False)
                     if result and type(result) is not Object:
                         return result
-                except RecursiveCallException as e:
+                except RecursiveCallException, e:
                     if not e.is_called_by(self):
                         raise
         finally:
@@ -203,7 +227,7 @@ class ClassName(NodeLocation, Object):
             self._assigned_attributes
         except AttributeError:
             self._assigned_attributes = {}
-            for name, loc in self.scope.get_names().items():
+            for name, loc in self.scope.get_names().iteritems():
                 for line, args in loc:
                     if args[0] == FunctionName:
                         func = self.scope.get_name(name, line)
@@ -217,7 +241,7 @@ class ClassName(NodeLocation, Object):
 
         result = self._assigned_attributes.copy()
         for cls in self.get_bases():
-            for attr, value in cls.get_assigned_attributes().items():
+            for attr, value in cls.get_assigned_attributes().iteritems():
                 if attr not in result:
                     result[attr] = value
 
@@ -309,17 +333,8 @@ class AttributesAssignsExtractor(ast.NodeVisitor):
         self.scope = scope
         self.name = name
         self.result = {}
-
         self.generic_visit(node)
         return self.result
-
-
-def create_object_from_class_name(scope, name):
-    from .objects import FakeInstanceObject
-    return FakeInstanceObject(scope.eval(name, False))
-
-def create_object_from_expr(scope, expr):
-    return scope.eval(expr, False)
 
 
 class NameExtractor(ast.NodeVisitor):
@@ -329,36 +344,42 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node):
         for n in node.names:
-            module_name = '.' * node.level + node.module
+            module_name = '.' * node.level + (node.module if node.module else '')
             if n.name == '*':
                 self.starred_imports.append((module_name, node.lineno))
             else:
                 name = n.asname if n.asname else n.name
-                self.add_name(name, (ImportedName, module_name, name), node.lineno)
+                self.add_name(name, (ImportedName, module_name, n.name), node.lineno)
 
     def visit_Import(self, node):
         for n in node.names:
             if n.asname:
-                self.add_name(n.asname, (ModuleName, n.name, set()), node.lineno)
+                self.names[n.asname] = ModuleName, n.name
             else:
                 name, _, tail = n.name.partition('.')
                 self.add_name(name, (ModuleName, name, set()), node.lineno)
                 if tail:
                     self.additional_imports.setdefault(name, []).append(tail)
 
-    def get_names_from_target(self, target, result):
-        if isinstance(target, ast.Tuple):
+    def get_indexes_for_target(self, target, result, idx):
+        if isinstance(target, (ast.Tuple, ast.List)):
+            idx.append(0)
             for r in target.elts:
-                self.get_names_from_target(r, result)
+                self.get_indexes_for_target(r, result, idx)
+            idx.pop()
 
         else:
-            result.append(target.id)
+            result.append((target, idx[:]))
+            if idx:
+                idx[-1] += 1
 
         return result
 
     def visit_For(self, node):
-        for n in self.get_names_from_target(node.target, []):
-            self.add_name(n, (Object, ), node.lineno)
+        value = PostponedName(self.scope, create_object_from_seq_item, self.scope, node.iter)
+
+        for n, idx in self.get_indexes_for_target(node.target, [], []):
+            self.add_name(n.id, (AssignedName, idx, value, n.lineno), node.lineno)
 
         self.generic_visit(node)
 
@@ -367,21 +388,18 @@ class NameExtractor(ast.NodeVisitor):
         self.add_name(node.name, (ClassName, class_scope, node), node.lineno)
 
     def visit_Assign(self, node):
-        if isinstance(node.targets[0], ast.Tuple):
-            targets = enumerate(node.targets[0].elts)
-        else:
-            targets = ((None, r) for r in node.targets)
+        value = Value(self.scope, node.value)
 
-        for i, n in targets:
+        for n, idx in self.get_indexes_for_target(node.targets[0], [], []):
             if isinstance(n,  ast.Name):
-                self.add_name(n.id, (AssignedName, i, Value(self.scope, node.value), n.lineno), n.lineno)
+                self.add_name(n.id, (AssignedName, idx, value, n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):
-                self.subscript_assignments.append((n.value, n.slice, node.value))
+                self.subscript_assignments.append((n.value, n.slice, idx, value, n.lineno))
 
     def visit_arguments(self, node):
         for i, n in enumerate(node.args):
-            self.add_name(n.arg, (ArgumentName, self.scope, i, n.arg), self.scope.node.lineno)
-            self.scope.args[i] = n.arg
+            self.add_name(n.id, (ArgumentName, self.scope, i, n.id), n.lineno)
+            self.scope.args[i] = n.id
 
         for d in node.defaults:
             self.scope.defaults.append(Value(self.scope.parent, d))
@@ -394,20 +412,6 @@ class NameExtractor(ast.NodeVisitor):
             self.scope.kwarg = node.kwarg
             self.add_name(node.kwarg, (KwargName, self.scope), self.scope.node.lineno)
 
-    def visit_ExceptHandler(self, node):
-        if node.name:
-            self.add_name(node.name,
-                (create_object_from_class_name, self.scope, node.type), node.lineno)
-
-        self.generic_visit(node)
-
-    def visit_With(self, node):
-        if node.optional_vars:
-            self.add_name(node.optional_vars.id,
-                (create_object_from_expr, self.scope, node.context_expr), node.lineno)
-
-        self.generic_visit(node)
-
     def add_name(self, name, value, lineno):
         if name in self.names:
             self.names[name].insert(0, (lineno, value))
@@ -416,6 +420,7 @@ class NameExtractor(ast.NodeVisitor):
 
     def process(self, node, scope):
         #from .tree import dump_tree; print dump_tree(node); print
+
         self.scope = scope
         self.starred_imports = []
         self.additional_imports = {}
@@ -424,7 +429,7 @@ class NameExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-        for k, v in self.additional_imports.items():
+        for k, v in self.additional_imports.iteritems():
             for line, name in self.names[k]:
                 if name[0] is not ModuleName:
                     continue

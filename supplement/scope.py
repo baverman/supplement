@@ -1,10 +1,11 @@
 import ast
 import logging
+from bisect import bisect
 
 from .evaluator import Evaluator
 from .names import NameExtractor, create_name, ArgumentName, VarargName
-from .names import ClassName, FunctionName, ImportedName
-from .common import ListHolder
+from .names import ClassName, FunctionName, ImportedName, PostponedName
+from .common import ListHolder, create_object_from_class_name, create_object_from_expr
 
 def traverse_tree(root):
     yield root
@@ -12,42 +13,12 @@ def traverse_tree(root):
         for r in traverse_tree(n):
             yield r
 
-def get_block_end(table, lines, continous):
-    start = table.get_lineno() - 1
-    start_line = lines[start]
-
-    stripped_start_line = start_line.lstrip()
-    while not any(map(stripped_start_line.startswith, ('def ', 'class '))):
-        start += 1
-        try:
-            start_line = lines[start]
-        except IndexError:
-            return start
-
-    indent = len(start_line) - len(start_line.lstrip())
-
-    last_line = start + 1
-    for i, l in enumerate(lines[start+1:], start+2):
-        stripped = l.lstrip()
-
-        if stripped:
-            if len(l) - len(stripped) <= indent:
-                break
-
-        if stripped or continous:
-            last_line = i
-    else:
-        last_line = len(lines) + 1
-
-    return last_line
-
 def get_scope_at(project, source, lineno, filename=None, ast_node=None, continous=True):
     ast_node = ast_node or ast.parse(source)
 
     scope = Scope(ast_node, '', None, 'module')
     scope.project = project
     scope.filename = filename
-
     return scope.get_scope_at(source, lineno, continous)
 
 
@@ -58,6 +29,10 @@ class Scope(object):
         self.parent = parent
         self._attrs = {}
         self.type = scope_type
+        self.node2scope = {}
+
+        if scope_type == 'module':
+            node.lineno = 0
 
         if parent:
             self.project = parent.project
@@ -111,16 +86,17 @@ class Scope(object):
         try:
             self._names
         except AttributeError:
+            from supplement.names import AssignedName
             self._names, starred_imports, sassigns = NameExtractor().process(self.node, self)
             for m, line in starred_imports:
                 for name in self.project.get_module(m, self.filename).get_names():
                     self._names.setdefault(name, []).append((line, (ImportedName, m, name)))
                     self._names[name].sort(reverse=True)
 
-            for target, idx, value in sassigns:
+            for target, idx, vidx, value, line in sassigns:
                 t = self.eval(target, False)
                 if t:
-                    t.op_setitem(self.eval(idx, False), self.eval(value, False))
+                    t.op_setitem(self.eval(idx, False), AssignedName(vidx, value, line))
                 else:
                     logging.getLogger(__name__).error(
                         "Can't eval target on subscript assign %s %s", self.filename, vars(target))
@@ -129,7 +105,7 @@ class Scope(object):
             return self._names
 
         result = []
-        for name, names in self._names.items():
+        for name, names in self._names.iteritems():
             if any(line <= lineno for line, _ in names):
                 result.append(name)
 
@@ -183,29 +159,70 @@ class Scope(object):
             except KeyError:
                 scope = scope.parent
 
-        return self.project.get_module('builtins')[name]
+        return self.project.get_module('__builtin__')[name]
 
     def get_scope_at(self, source, lineno, continous=True):
-        prev = None
-        for node in traverse_tree(self):
-            if node.get_lineno() == lineno:
-                break
+        try:
+            ranges = self._scope_ranges
+        except AttributeError:
+            ranges = self._scope_ranges = ([], [])
+            collect_scope_ranges(self.node, ranges, [])
 
-            if node.get_lineno() > lineno:
-                node = prev
-                break
+        lines, scopes = ranges
+        idx = bisect(lines, lineno) - 1
+        node, end, parent = scopes[idx]
+        cadd = 0
 
-            prev = node
+        if end and not continous:
+            lines = source.splitlines()
+            i = end - 2
+            while i >= 0:
+                if lines[i].strip():
+                    break
+                i -= 1
+            cadd = end - i - 2
 
-        lines = source.splitlines()
-        while node.parent:
-            end = get_block_end(node, lines, continous)
-            if lineno <= end:
-                break
+        while parent and end and lineno >= end - cadd:
+            node, end, parent = parent
 
-            node = node.parent
+        try:
+            return self.node2scope[node]
+        except KeyError:
+            pass
 
-        return node
+        for s in traverse_tree(self):
+            if s.node is node:
+                self.node2scope[node] = s
+                return s
+
+        raise Exception('Scope for line %d not found' % lineno)
+
+
+SCOPE_CLASSES = (ast.ClassDef, ast.FunctionDef, ast.ExceptHandler, ast.With, ast.Module)
+BLOCK_CLASSES = SCOPE_CLASSES + (ast.TryExcept, ast.TryFinally, ast.If, ast.While, ast.For)
+
+def collect_scope_ranges(root, ranges, toclose, parent=None):
+    if not isinstance(root, BLOCK_CLASSES):
+        return
+
+    isscope = isinstance(root, SCOPE_CLASSES)
+    if isscope:
+        lrange = [root, None, parent]
+        ranges[0].append(root.lineno)
+        ranges[1].append(lrange)
+        parent = lrange
+
+    for n in ast.iter_child_nodes(root):
+        if toclose:
+            for r in toclose:
+                r[1] = n.lineno
+
+            toclose[:] = []
+
+        collect_scope_ranges(n, ranges, toclose, parent)
+
+    if isscope:
+        toclose.append(lrange)
 
 
 class CallScope(object):
@@ -288,6 +305,33 @@ class StaticScope(object):
         return self._names[name]
 
 
+class InnerScope(Scope):
+    def __init__(self, node, parent):
+        Scope.__init__(self, node, parent.name, parent, 'inner')
+        self.fullname = parent.fullname
+        self._names = {}
+
+    def add_name(self, name, value):
+        self._names[name] = value
+
+    def get_names(self, lineno=None):
+        return self._names
+
+    def get_name(self, name, lineno=None):
+        return self._names[name]
+
+    def __getitem__(self, name):
+        return self.get_name(name)
+
+    def find_name(self, name, lineno=None):
+        try:
+            return self._names[name]
+        except KeyError:
+            pass
+
+        return self.parent.find_name(name, lineno)
+
+
 class ScopeExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
         scope = Scope(node, node.name, self.scope, 'func')
@@ -296,6 +340,20 @@ class ScopeExtractor(ast.NodeVisitor):
         scope.vararg = None
         scope.kwarg = None
         scope.function = create_name((FunctionName, scope, node), scope)
+        self.children.append(scope)
+
+    def visit_ExceptHandler(self, node):
+        scope = InnerScope(node, self.scope)
+        if node.name:
+            scope.add_name(node.name.id, PostponedName(self.scope,
+                create_object_from_class_name, self.scope, node.type))
+        self.children.append(scope)
+
+    def visit_With(self, node):
+        scope = InnerScope(node, self.scope)
+        if node.optional_vars:
+            scope.add_name(node.optional_vars.id, PostponedName(self.scope,
+                create_object_from_expr, self.scope, node.context_expr))
         self.children.append(scope)
 
     def visit_ClassDef(self, node):

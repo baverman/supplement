@@ -1,7 +1,7 @@
 import ast
 from .utils import WeakedList
 from .common import UnknownObject
-from .names import ClassName
+from .names import ClassName, ImportedName
 from .objects import ClassObject
 
 class CallExtractor(ast.NodeVisitor):
@@ -14,6 +14,12 @@ class CallExtractor(ast.NodeVisitor):
         pass
 
     def visit_ClassDef(self, node):
+        pass
+
+    def visit_ExceptHandler(self, node):
+        pass
+
+    def visit_With(self, node):
         pass
 
     def visit_Call(self, node):
@@ -106,8 +112,13 @@ class CallDB(object):
 
                 try:
                     func = s.eval(func, False)
+                except AssertionError:
+                    raise
                 except:
                     continue
+
+                while getattr(func, 'get_object', None):
+                    func = func.get_object()
 
                 if isinstance(func, (ClassName, ClassObject)):
                     func = func['__init__']

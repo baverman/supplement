@@ -21,7 +21,7 @@ def get_scope_names(scope, lineno=None):
 
         scope = scope.parent
 
-    m = project.get_module('builtins')
+    m = project.get_module('__builtin__')
     yield m.get_names()
 
 def collect_names(match, names):
@@ -58,7 +58,7 @@ def get_block(source, position):
 class TokenGenerator(object):
     def __init__(self, lines):
         it = iter(lines)
-        self.tokens = generate_tokens(it.__next__)
+        self.tokens = generate_tokens(it.next)
         self.onhold = None
 
     def get(self, *tids):
@@ -96,7 +96,7 @@ class TokenGenerator(object):
             try:
                 tid = NL
                 while tid in self.SPACES:
-                    tid, value, _, _, _  = next(self.tokens)
+                    tid, value, _, _, _  = self.tokens.next()
             except (TokenError, StopIteration):
                 tid, value = 0, ''
 
@@ -327,6 +327,9 @@ def get_location(project, source, position, filename):
 
     elif ctx_type in ('import', 'from-import'):
         if ctx:
+            if ctx[-1] == '.':
+                ctx = ctx[:-1]
+
             module_name = ctx + '.' + match
         else:
             module_name = match
@@ -351,6 +354,7 @@ def get_docstring(project, source, position, filename):
         ast_nodes, fixed_source = fix(source)
         scope = get_scope_at(project, fixed_source, lineno, filename, ast_nodes)
         obj = infer(fctx, scope, lineno)
+
         sig = obj.get_signature()
         if sig:
             sig = '%s%s' % (sig[0], formatargspec(*sig[1:]))

@@ -32,3 +32,14 @@ def test_module_loader_must_load_project_modules(project, tmpdir):
 
     assert m.module is not subprocess
     assert 'append' in m['name']
+
+def test_module_loader_must_do_relative_load_without_sys_path(project, tmpdir):
+    pkgdir = tmpdir.join('package')
+    pkgdir.mkdir()
+    pkgdir.join('__init__.py').write('')
+    pkgdir.join('toimport.py').write('test = 1')
+
+    project.set_root(str(pkgdir))
+
+    m = project.get_module('.toimport', str(pkgdir) + '/test.py')
+    assert 'test' in m

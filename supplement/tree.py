@@ -59,8 +59,13 @@ class NameExtractor(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node):
         for n in node.names:
-            name = n.asname if n.asname else n.name
-            self.attrs[name] = 'imported', n.name, node
+            module_name = '.' * node.level + (node.module if node.module else '')
+            if n.name == '*':
+                # TODO handle star names in imported objects
+                pass
+            else:
+                name = n.asname if n.asname else n.name
+                self.attrs[name] = 'imported', n.name, module_name
 
     def visit_ClassDef(self, node):
         self.attrs[node.name] = 'class', node
@@ -93,7 +98,8 @@ class ReturnExtractor(ast.NodeVisitor):
         return self.result
 
     def visit_Return(self, node):
-        self.result.append(node)
+        if node.value:
+            self.result.append(node)
 
 
 class TreeDumper(ast.NodeVisitor):

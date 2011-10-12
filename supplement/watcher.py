@@ -27,8 +27,7 @@ class DummyMonitor(Monitor):
         self.files.add(filename)
 
     def boo(self):
-        for f in self.files:
-            self.file_changed(f)
+        map(self.file_changed, self.files)
 
 
 class FallbackMonitor(Monitor):
@@ -51,7 +50,7 @@ class FallbackMonitor(Monitor):
     def watch_for_changes(self):
         from os.path import getmtime
         while True:
-            for f, mtime in self.files.items():
+            for f, mtime in self.files.iteritems():
                 new_mtime = getmtime(f)
                 if new_mtime != mtime:
                     self.file_changed(f)

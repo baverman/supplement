@@ -209,7 +209,6 @@ class Evaluator(ast.NodeVisitor):
             raise
         except Exception as e:
             if not getattr(e, '_processed', None):
-                logging.getLogger(__name__).exception('Boo')
                 from .tree import dump_tree
                 logger = logging.getLogger(__name__)
                 logger.exception('\n<<<<<<<<<<<<<<<<<')

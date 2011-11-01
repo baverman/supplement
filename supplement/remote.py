@@ -61,6 +61,9 @@ class Environment(object):
         else:
             raise Exception(result)
 
+    def get_fixed_source(self, project_path, source):
+        return self._call('get_fixed_source', project_path, source)
+
     def assist(self, project_path, source, position, filename):
         """Return completion match and list of completion proposals
 

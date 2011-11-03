@@ -2,7 +2,7 @@ import sys
 from pickle import loads, dumps
 
 from supplement.project import Project
-from supplement.assistant import assist, get_location, get_docstring
+from supplement.assistant import assist, get_location, get_docstring, get_fixed_source
 from supplement.scope import get_scope_at
 from supplement.watcher import get_monitor
 from supplement.fixer import sanitize_encoding
@@ -45,6 +45,9 @@ class Server(object):
             result = e.__class__.__name__, str(e)
 
         return result, is_ok
+
+    def get_fixed_source(self, path, source):
+        return get_fixed_source(self.get_project(path), source)
 
     def assist(self, path, source, position, filename):
         return assist(self.get_project(path), source, position, filename)

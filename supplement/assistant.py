@@ -270,6 +270,11 @@ def get_context(source, position):
 
     return ctype, lineno, ctx, match, fctx
 
+def get_fixed_source(project, source):
+    source = sanitize_encoding(source)
+    ast_nodes, fixed_source = fix(source)
+    return fixed_source
+
 def assist(project, source, position, filename):
     logging.getLogger(__name__).info('assist %s %s', project.root, filename)
     ctx_type, lineno, ctx, match, fctx = get_context(source, position)

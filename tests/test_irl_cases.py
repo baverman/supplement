@@ -29,16 +29,6 @@ def test_logging_getLogger(project):
 
     assert 'exception' in result
 
-def test_unclosed_bracket_indented_assist(project):
-    result = do_assist(project, '''
-        import sys
-
-        if True:
-            len(sy|
-    ''')
-
-    assert 'sys' in result
-
 def est_pyqt_signals(project):
     result = do_assist(project, '''
         from PyQt4 import QtGui

@@ -16,6 +16,57 @@ def test_sanitize_encoding_must_not_change_source_after_third_line():
     source = sanitize_encoding(u'# coding: utf-8\n\n\ncoding="utf-8"')
     assert source == u'# codang: utf-8\n\n\ncoding="utf-8"'
 
+def test_incomlete_if(project):
+    result = do_assist(project, '''
+        var = 1
+        if |
+    ''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        var = 1
+        if v|
+    ''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        def foo():
+            var = 1
+            if |
+    ''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        def foo():
+            var = 1
+            if v|
+    ''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        def foo():
+            var = 1
+            if |
+
+            do_something()
+
+        def boo():
+            pass
+    ''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        def foo():
+            var = 1
+            if v|
+
+            do_something()
+
+        def boo():
+            pass
+    ''')
+    assert 'var' in result
+
 def test_not_closed_except(project):
     result = do_assist(project, '''
         try:
@@ -27,20 +78,26 @@ def test_not_closed_except(project):
 
     assert result == ['AttributeError']
 
-def test_glued_indent():
-    source = cleantabs('''
-        import toimport
+def test_not_closed_try(project):
+    result = do_assist(project, '''
+        var = 1
 
-        if True:
-            toimport(
+        try:
+            |
+
+        code
     ''')
+    assert 'var' in result
 
-    tree, source = fix(source)
-    expected_source = cleantabs('''
-        import toimport
+    result = do_assist(project, '''
+        var = 1
 
-        if True: pass''')
-    assert source == expected_source
+        try:
+            v|
+
+        code
+    ''')
+    assert 'var' in result
 
 def test_except_with_colon(project):
     result = do_assist(project, '''
@@ -55,28 +112,64 @@ def test_except_with_colon(project):
 
     assert 'AttributeError' in result
 
-def test_if(project):
+def test_incomplete_for(project):
     result = do_assist(project, '''
-        name = 1
-
-        if na|
-
-        other
+        var = 1
+        for a in |
     ''')
+    assert 'var' in result
 
-    assert 'name' in result
+    result = do_assist(project, '''
+        var = 1
+        for a in v|
+    ''')
+    assert 'var' in result
 
-@pytest.mark.xfail
-def test_unclosed_bracket():
-    source = cleantabs('''
-        func(
+def test_unclosed_bracket(project):
+    result = do_assist(project, '''
+        var = 1
+
+        map(|
 
         def foo():
             pass
+    ''')
+    assert 'var' in result
 
-        def boo():
-            pass
+    result = do_assist(project, '''
+        var = 1
+
+        map(|
 
     ''')
+    assert 'var' in result
 
-    tree, source = fix(source, 5)
+    result = do_assist(project, '''
+        var = 1
+
+        map(|''')
+    assert 'var' in result
+
+    result = do_assist(project, '''
+        var = 1
+
+        if True:
+            len(v|
+    ''')
+    assert 'var' in result
+
+def test_dotted(project):
+    result = do_assist(project, '''
+        def foo():
+            var = []
+            var.| ;True
+    ''')
+    assert 'append' in result
+
+def test_dot_in_for(project):
+    result = do_assist(project, '''
+        var = []
+        for r in var.|  :
+            pass
+    ''')
+    assert 'append' in result

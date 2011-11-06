@@ -2,7 +2,7 @@ import ast
 import logging
 
 from .objects import create_object, FakeInstanceObject
-from .common import Value, UnknownObject, Object
+from .common import Value, UnknownObject, Object, create_object_from_seq_item, get_indexes_for_target
 from .names import RecursiveCallException
 
 def infer(string, scope, lineno=None):
@@ -184,6 +184,23 @@ class Evaluator(ast.NodeVisitor):
 
     def visit_Compare(self, node):
         self.push(FakeInstanceObject(create_object(self.scope, bool)))
+
+    def visit_ListComp(self, node):
+        from .scope import InnerScope
+        from .names import PostponedName, AssignedName
+
+        scope = InnerScope(node, self.scope)
+
+        for gen in node.generators:
+            value = PostponedName(self.scope, create_object_from_seq_item, self.scope, gen.iter)
+
+            for n, idx in get_indexes_for_target(gen.target, [], []):
+                scope.add_name(n.id, AssignedName(idx, value, n.lineno))
+
+        self.push(Indexable(scope, create_object(scope, []), [node.elt]))
+
+    def visit_GeneratorExp(self, node):
+        self.visit_ListComp(node)
 
     def process(self, tree, scope, skip_toplevel=True):
         #from .tree import dump_tree; print '!!!', scope.filename; print dump_tree(tree); print

@@ -200,3 +200,36 @@ def test_name_introduced_by_with_statement(project):
 
     result = scope2.get_names(line2)
     assert 'f' not in result
+
+def test_name_in_list_comprehension(project):
+    scope, line = project.create_scope('''
+        data = [(x, y) for x in (1, 2, 3) for y in ("1", "2", "3")]
+        for a, b in data:
+            |
+            pass
+    ''')
+
+    obj = scope.get_name('data', line)
+    assert 'append' in  obj
+
+    obj = scope.get_name('a', line)
+    assert 'numerator' in  obj
+
+    obj = scope.get_name('b', line)
+    assert 'split' in  obj
+
+def test_name_in_generator_expression(project):
+    scope, line = project.create_scope('''
+        def foo(arg):
+            return arg
+
+        for a, b in foo((x, y) for x in (1, 2, 3) for y in ("1", "2", "3")):
+            |
+            pass
+    ''')
+
+    obj = scope.get_name('a', line)
+    assert 'numerator' in  obj
+
+    obj = scope.get_name('b', line)
+    assert 'split' in  obj

@@ -3,7 +3,7 @@ import logging
 
 from .tree import ReturnExtractor
 from .common import Object, UnknownObject, GetObjectDelegate, Value, MethodObject, \
-    create_object_from_seq_item
+    create_object_from_seq_item, get_indexes_for_target
 
 
 class Valuable(object):
@@ -361,24 +361,10 @@ class NameExtractor(ast.NodeVisitor):
                 if tail:
                     self.additional_imports.setdefault(name, []).append(tail)
 
-    def get_indexes_for_target(self, target, result, idx):
-        if isinstance(target, (ast.Tuple, ast.List)):
-            idx.append(0)
-            for r in target.elts:
-                self.get_indexes_for_target(r, result, idx)
-            idx.pop()
-
-        else:
-            result.append((target, idx[:]))
-            if idx:
-                idx[-1] += 1
-
-        return result
-
     def visit_For(self, node):
         value = PostponedName(self.scope, create_object_from_seq_item, self.scope, node.iter)
 
-        for n, idx in self.get_indexes_for_target(node.target, [], []):
+        for n, idx in get_indexes_for_target(node.target, [], []):
             self.add_name(n.id, (AssignedName, idx, value, n.lineno), node.lineno)
 
         self.generic_visit(node)
@@ -390,7 +376,7 @@ class NameExtractor(ast.NodeVisitor):
     def visit_Assign(self, node):
         value = Value(self.scope, node.value)
 
-        for n, idx in self.get_indexes_for_target(node.targets[0], [], []):
+        for n, idx in get_indexes_for_target(node.targets[0], [], []):
             if isinstance(n,  ast.Name):
                 self.add_name(n.id, (AssignedName, idx, value, n.lineno), n.lineno)
             if isinstance(n,  ast.Subscript):

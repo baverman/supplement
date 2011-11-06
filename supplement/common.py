@@ -1,4 +1,5 @@
 import logging
+import ast
 
 class Object(object):
     def get_location(self):
@@ -165,4 +166,18 @@ def create_object_from_expr(scope, expr):
 def create_object_from_seq_item(scope, expr):
     seq = scope.eval(expr, False)
     return seq.op_common_item()
+
+def get_indexes_for_target(target, result, idx):
+    if isinstance(target, (ast.Tuple, ast.List)):
+        idx.append(0)
+        for r in target.elts:
+            get_indexes_for_target(r, result, idx)
+        idx.pop()
+
+    else:
+        result.append((target, idx[:]))
+        if idx:
+            idx[-1] += 1
+
+    return result
 

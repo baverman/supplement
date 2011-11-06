@@ -688,4 +688,3 @@ def test_get_location_for_assigned_names(project):
     ''')
     line, fname = get_location(project, source, pos, None)
     assert line == 1
-

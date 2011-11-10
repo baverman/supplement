@@ -6,6 +6,7 @@ from supplement.assistant import assist, get_location, get_docstring, get_fixed_
 from supplement.scope import get_scope_at
 from supplement.watcher import get_monitor
 from supplement.fixer import sanitize_encoding
+from supplement.linter import lint
 
 class Server(object):
     def __init__(self, conn):
@@ -62,6 +63,9 @@ class Server(object):
         return get_scope_at(
             self.get_project(path), sanitize_encoding(source), lineno,
                 filename, continous=continous).fullname
+
+    def lint(self, path, source, filename, syntax_only):
+        return lint(source, syntax_only)
 
     def run(self):
         conn = self.conn

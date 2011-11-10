@@ -64,6 +64,9 @@ class Environment(object):
     def get_fixed_source(self, project_path, source):
         return self._call('get_fixed_source', project_path, source)
 
+    def lint(self, project_path, source, filename, syntax_only=False):
+        return self._call('lint', project_path, source, filename, syntax_only)
+
     def assist(self, project_path, source, position, filename):
         """Return completion match and list of completion proposals
 

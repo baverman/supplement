@@ -92,36 +92,40 @@ def find_prev_block_start(lines, lineno):
 
     return None
 
-def find_fixer(error, code):
+def try_to_fix(error, code):
     if type(error) == SyntaxError:
         before, line, after = get_lines(code, error.lineno)
 
         if error.text[:error.offset-1].rstrip().endswith('.'):
-            return (replace_line, before,
-                error.text[:error.offset-1].rstrip() + '_someattr' + error.text[error.offset-1:], after)
+            return (replace_line(before, error.text[:error.offset-1].rstrip() +
+                '_someattr' + error.text[error.offset-1:], after),
+                ('line-offset', error.lineno, len(error.text[:error.offset-1].rstrip())))
 
         if error.text.rstrip().endswith('if'):
-            return replace_line, before, line.rstrip() + ' _somevar: pass', after
+            return (replace_line(before, line.rstrip() + ' _somevar: pass', after),
+                ('end-of-line', error.lineno))
 
         lines = code.splitlines()
         result = find_unclosed_try(lines, error.lineno)
         if result:
-            return unwrap_block, result[0], result[1], lines
+            return unwrap_block(result[0], result[1], lines), ('end-of-line', result[1] + 1)
 
         if any(map(error.text.lstrip().startswith, ('with', 'for', 'if', 'while', 'except'))) \
                 and error.text[-1] != ':':
 
-            if any(map(error.text.rstrip().endswith, ('with', ' in', 'while'))):
-                return replace_line, before, line.rstrip() + ' _somevar: pass', after
+            loc = 'end-of-line', error.lineno
 
-            return replace_line, before, line.rstrip() + ': pass', after
+            if any(map(error.text.rstrip().endswith, ('with', ' in', 'while'))):
+                return replace_line(before, line.rstrip() + ' _somevar: pass', after), loc
+
+            return replace_line(before, line.rstrip() + ': pass', after), loc
 
         if lines[-1].strip() and error.lineno == len(lines):
-            return remove_block, error.lineno-1, error.lineno, lines
+            return remove_block(error.lineno-1, error.lineno, lines), ('end-of-file',)
 
         result = find_prev_block_start(lines, error.lineno)
         if result is not None:
-            return remove_block, result, error.lineno-2, lines
+            return remove_block(result, error.lineno-2, lines), ('end-of-line', result+1)
 
     elif type(error) == IndentationError:
         before, line, after = get_lines(code, error.lineno)
@@ -129,25 +133,22 @@ def find_fixer(error, code):
             sline = l.strip()
             if sline:
                 if sline == 'try:':
-                    return replace_lineno, code.splitlines(), i, ''
+                    return replace_lineno(code.splitlines(), i, ''), ('end-of-line', error.lineno - 1)
                 if sline[-1] == ':':
-                    return append_before, 'pass', i, before, line, after
+                    return append_before('pass', i, before, line, after), ('end-of-line', error.lineno - 1)
 
-def fix(code, tries=10, fixers=None):
-    if fixers is None:
-        fixers = []
+    return code, None
 
+def fix(code, tries=10):
     try:
         return ast.parse(code), code
     except Exception, e:
-        #print type(e), code
         tries -= 1
         if tries <= 0:
             raise
 
-        fixer = find_fixer(e, code)
-        if fixer:
-            fixers.append(fixer)
-            return fix(fixer[0](*fixer[1:]), tries, fixers)
+        code, fixed_location = try_to_fix(e, code)
+        if fixed_location:
+            return fix(code, tries)
         else:
             raise

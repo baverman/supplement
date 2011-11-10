@@ -9,6 +9,12 @@ def get_ws_len(line):
     else:
         return 0
 
+def renumerate(seq):
+    i = len(seq) - 1
+    for r in reversed(seq):
+        yield i, r
+        i -= 1
+
 def sanitize_encoding(source):
     if isinstance(source, str):
         parts = source.split('\n', 4)
@@ -25,46 +31,123 @@ def force_byte_string(source):
     else:
         return source
 
-def fix(code, tries=10):
+def get_lines(code, lineno):
+    lines = code.splitlines()
+    return lines[:lineno-1], lines[lineno-1], lines[lineno:]
+
+def append_before(text, lineno, before, line, after):
+    before[lineno] += text
+    return '\n'.join(before + [line] + after)
+
+def replace_line(before, line, after):
+    return '\n'.join(before + [line] + after)
+
+def replace_lineno(lines, lineno, text):
+    lines[lineno] = text
+    return '\n'.join(lines)
+
+def unwrap_block(block_start, block_end, lines):
+    lines[block_start] = ''
+    for i, line in enumerate(lines[block_start+1:block_end+1], block_start+1):
+        if line.startswith('    '):
+            lines[i] = line[4:]
+        elif line and line[0] == '\t':
+            lines[i] = line[1:]
+
+    return '\n'.join(lines)
+
+def remove_block(block_start, block_end, lines):
+    for i, line in enumerate(lines[block_start:block_end+1], block_start):
+        lines[i] = '    '
+
+    return '\n'.join(lines)
+
+def find_except_on_the_same_level(lines, lineno):
+    tryws = get_ws_len(lines[lineno])
+    for i, line in enumerate(lines[lineno+1:], lineno+1):
+        if line.lstrip().startswith('except') and get_ws_len(line) == tryws:
+            return True, i
+
+        if line.strip() and get_ws_len(line) <= tryws:
+            return False, i - 1
+
+    return False, len(lines) - 1
+
+def find_unclosed_try(lines, lineno):
+    for i, line in renumerate(lines[:lineno]):
+        if line.strip() == 'try:':
+            is_found, j = find_except_on_the_same_level(lines, i)
+            if is_found:
+                if j > lineno:
+                    return None
+            else:
+                return i, j
+
+    return None
+
+def find_prev_block_start(lines, lineno):
+    for i, line in renumerate(lines[:lineno-1]):
+        if line.strip():
+            return i
+
+    return None
+
+def find_fixer(error, code):
+    if type(error) == SyntaxError:
+        before, line, after = get_lines(code, error.lineno)
+
+        if error.text[:error.offset-1].rstrip().endswith('.'):
+            return (replace_line, before,
+                error.text[:error.offset-1].rstrip() + '_someattr' + error.text[error.offset-1:], after)
+
+        if error.text.rstrip().endswith('if'):
+            return replace_line, before, line.rstrip() + ' _somevar: pass', after
+
+        lines = code.splitlines()
+        result = find_unclosed_try(lines, error.lineno)
+        if result:
+            return unwrap_block, result[0], result[1], lines
+
+        if any(map(error.text.lstrip().startswith, ('with', 'for', 'if', 'while', 'except'))) \
+                and error.text[-1] != ':':
+
+            if any(map(error.text.rstrip().endswith, ('with', ' in', 'while'))):
+                return replace_line, before, line.rstrip() + ' _somevar: pass', after
+
+            return replace_line, before, line.rstrip() + ': pass', after
+
+        if lines[-1].strip() and error.lineno == len(lines):
+            return remove_block, error.lineno-1, error.lineno, lines
+
+        result = find_prev_block_start(lines, error.lineno)
+        if result is not None:
+            return remove_block, result, error.lineno-2, lines
+
+    elif type(error) == IndentationError:
+        before, line, after = get_lines(code, error.lineno)
+        for i, l in renumerate(before):
+            sline = l.strip()
+            if sline:
+                if sline == 'try:':
+                    return replace_lineno, code.splitlines(), i, ''
+                if sline[-1] == ':':
+                    return append_before, 'pass', i, before, line, after
+
+def fix(code, tries=10, fixers=None):
+    if fixers is None:
+        fixers = []
+
     try:
-        #print '>>>>>', tries
-        #print code
-        #print '\n<<<<\n'
         return ast.parse(code), code
-    except IndentationError as e:
-        #print 'IE', tries, e
-        if not tries:
+    except Exception as e:
+        #print type(e), code
+        tries -= 1
+        if tries <= 0:
             raise
 
-        result = code.splitlines()
-        i = e.lineno
-        while i > 0:
-            i -= 1
-            ls = result[i].rstrip()
-            if ls.endswith(':'):
-                result[i] = ls + ' pass'
-                break
-
-    except SyntaxError as e:
-        #print 'SE', tries, e
-        if not tries:
-            raise
-
-        code = code.splitlines()
-
-        if e.text and e.text.strip().startswith('except '):
-            code[e.lineno - 1] = code[e.lineno - 1][:e.offset] + ': pass'
-            result = code
+        fixer = find_fixer(e, code)
+        if fixer:
+            fixers.append(fixer)
+            return fix(fixer[0](*fixer[1:]), tries, fixers)
         else:
-            level = get_ws_len(code[e.lineno - 1])
-            result = code[:e.lineno - 1]
-            result.append('')
-            for i, l in enumerate(code[e.lineno:], e.lineno):
-                if l.strip() and get_ws_len(l) <= level:
-                    result.extend(code[i:])
-                    break
-                else:
-                    result.append('')
-
-    code = '\n'.join(result)
-    return fix(code, tries - 1)
+            raise

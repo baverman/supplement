@@ -6,7 +6,7 @@ from supplement.assistant import assist, get_location, get_docstring, get_fixed_
 from supplement.scope import get_scope_at
 from supplement.watcher import get_monitor
 from supplement.fixer import sanitize_encoding
-from supplement.linter import lint
+from supplement.linter import lint, check_syntax
 
 class Server(object):
     def __init__(self, conn):
@@ -65,7 +65,10 @@ class Server(object):
                 filename, continous=continous).fullname
 
     def lint(self, path, source, filename, syntax_only):
-        return lint(source, syntax_only)
+        return lint(source)
+
+    def check_syntax(self, source):
+        return check_syntax(source)
 
     def run(self):
         conn = self.conn

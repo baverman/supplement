@@ -4,7 +4,7 @@ from tokenize import NL, NEWLINE, ERRORTOKEN, INDENT, DEDENT, generate_tokens, T
 from keyword import iskeyword
 from contextlib import contextmanager
 
-from fixer import try_to_fix, sanitize_encoding
+from .fixer import try_to_fix, sanitize_encoding
 
 def check_syntax(source):
     source = sanitize_encoding(source)

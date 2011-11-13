@@ -4,9 +4,10 @@ from tokenize import NL, NEWLINE, ERRORTOKEN, INDENT, DEDENT, generate_tokens, T
 from keyword import iskeyword
 from contextlib import contextmanager
 
-from .fixer import try_to_fix
+from .fixer import try_to_fix, sanitize_encoding
 
 def check_syntax(source):
+    source = sanitize_encoding(source)
     try:
         parse(source)
     except Exception as e:
@@ -19,6 +20,7 @@ def check_syntax(source):
         return None
 
 def lint(source):
+    source = sanitize_encoding(source)
     tree = parse(source)
     result = []
     result.extend(check_names(source, tree))

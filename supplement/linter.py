@@ -19,6 +19,7 @@ def check_syntax(source):
     else:
         return None
 
+
 def lint(source):
     source = sanitize_encoding(source)
     tree = parse(source)
@@ -69,6 +70,7 @@ class Name(object):
         return "Name(%s, %s, %s, %s, %s)" % (self.name, self.line, self.offset,
             self.indirect_use, self.declared_at_loop)
 
+MODULE_NAMES = set(('__builtins__', '__doc__', '__file__', '__name__', '__package__'))
 class BuiltinScope(object):
     def __init__(self):
         self.names = {}
@@ -80,7 +82,7 @@ class BuiltinScope(object):
         except KeyError:
             pass
 
-        if name == '__builtins__' or name in __builtins__:
+        if name in MODULE_NAMES or name in __builtins__:
             result = Name(name, 0, 0, True)
         else:
             result = None

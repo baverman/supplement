@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import re
 from supplement.linter import lint
 from .helpers import cleantabs
@@ -139,4 +141,9 @@ def test_class_scope_must_not_hide_global_names():
         class Bar(object):
             def bar(self):
                 return bar()
+    ''')
+
+def test_unicode():
+    assert_names(u'''
+        s = "юникод %s" % !test!
     ''')

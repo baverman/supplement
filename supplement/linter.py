@@ -19,12 +19,24 @@ def check_syntax(source):
     else:
         return None
 
-
 def lint(source):
     source = sanitize_encoding(source)
     tree = parse(source)
     result = []
     result.extend(check_names(source, tree))
+
+    if isinstance(source, unicode):
+        result = translate_offsets(source, result)
+
+    return result
+
+def translate_offsets(source, errors):
+    lines = source.splitlines()
+    result = []
+    for (col, offset), name, msg in errors:
+        offset = len(lines[col-1].encode('utf-8')[:offset].decode('utf-8'))
+        result.append(((col, offset), name, msg))
+
     return result
 
 def check_names(source, tree):

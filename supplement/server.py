@@ -1,5 +1,29 @@
 import sys
-from pickle import loads, dumps
+import os.path
+
+try:
+    from cPickle import loads, dumps
+except ImportError:
+    from pickle import loads, dumps
+
+try:
+    import supplement
+except ImportError:
+    fname = os.__file__
+    if fname.endswith('.pyc'):
+        fname = fname[:-1]
+
+    if not os.path.islink(fname):
+        raise
+
+    real_prefix = os.path.dirname(os.path.realpath(fname))
+    site_packages = os.path.join(real_prefix, 'site-packages')
+    old_path = sys.path
+    sys.path = old_path + [site_packages]
+    try:
+        import supplement
+    finally:
+        sys.path = old_path
 
 from supplement.project import Project
 from supplement.assistant import assist, get_location, get_docstring, get_fixed_source

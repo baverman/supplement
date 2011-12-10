@@ -24,6 +24,19 @@ def lint(source):
     tree = parse(source)
     result = []
     result.extend(check_names(source, tree))
+
+    if isinstance(source, str):
+        result = translate_offsets(source, result)
+
+    return result
+
+def translate_offsets(source, errors):
+    lines = source.splitlines()
+    result = []
+    for (col, offset), name, msg in errors:
+        offset = len(lines[col-1].encode('utf-8')[:offset].decode('utf-8'))
+        result.append(((col, offset), name, msg))
+
     return result
 
 def check_names(source, tree):
@@ -69,6 +82,7 @@ class Name(object):
         return "Name(%s, %s, %s, %s, %s)" % (self.name, self.line, self.offset,
             self.indirect_use, self.declared_at_loop)
 
+MODULE_NAMES = set(('__builtins__', '__doc__', '__file__', '__name__', '__package__'))
 class BuiltinScope(object):
     def __init__(self):
         self.names = {}
@@ -80,7 +94,7 @@ class BuiltinScope(object):
         except KeyError:
             pass
 
-        if name == '__builtins__' or name in __builtins__:
+        if name in MODULE_NAMES or name in __builtins__:
             result = Name(name, 0, 0, True)
         else:
             result = None

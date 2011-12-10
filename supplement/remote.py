@@ -26,7 +26,8 @@ class Environment(object):
         else:
             addr = arbitrary_address('AF_UNIX')
 
-        args = [self.executable, '-m', 'supplement.server', addr]
+        supp_server = os.path.join(os.path.dirname(__file__), 'server.py')
+        args = [self.executable, supp_server, addr]
 
         env = None
         if self.env:

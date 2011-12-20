@@ -70,11 +70,11 @@ def test_builtin_names():
 
 def test_func_and_arg_names():
     assert_names('''
-        def boo(bar):
+        def boo($bar$):
             def $bar$():
                 pass
 
-        def foo(arg, *args, **kwargs):
+        def foo($arg$, *args, **kwargs):
             !bar!
             boo()
             args
@@ -86,12 +86,12 @@ def test_func_and_arg_names():
 def test_class_defenitions():
     assert_names('''
         class Boo(object):
-            def boo(self):
+            def boo($self$):
                 pass
 
             class Foo(object): pass
 
-            def foo(self):
+            def foo($self$):
                 class $Bar$(object):
                     pass
         Boo()
@@ -139,11 +139,92 @@ def test_class_scope_must_not_hide_global_names():
         from . import bar
 
         class Bar(object):
-            def bar(self):
+            def bar($self$):
                 return bar()
     ''')
 
 def test_unicode():
     assert_names(u'''
         s = "юникод %s" % !test!
+    ''')
+
+def test_unused_function_arguments():
+    assert_names('''
+        def bar(boo, $foo$):
+            return boo
+    ''')
+
+def test_simple_if():
+    assert_names('''
+        def foo():
+            boo = 1
+            if True:
+                boo = 2
+
+            return boo
+    ''')
+
+def test_complex_if():
+    assert_names('''
+        def foo():
+            boo = 1
+            if True:
+                boo = 2
+            elif False:
+                boo = 1
+            else:
+                if True:
+                    boo = 0
+
+            return boo
+    ''')
+
+def test_near_branches():
+    assert_names('''
+        def foo():
+            if True:
+                boo = 2
+
+            if True:
+                boo = 0
+
+            return boo
+    ''')
+
+def test_parent_subbranches1():
+    assert_names('''
+        def foo():
+            if True:
+                boo = 2
+
+            if True:
+                return boo
+    ''')
+
+def test_parent_subbranches2():
+    assert_names('''
+        def foo():
+            if True:
+                boo = 1
+
+                if True:
+                    boo = 2
+
+                if True:
+                    return boo
+    ''')
+
+def test_parent_subbranches3():
+    assert_names('''
+        def foo():
+            if True:
+                $boo$ = 1
+            else:
+                return !boo!
+    ''')
+
+def test_lambda():
+    assert_names('''
+        def foo():
+            return lambda boo, bar: boo + bar
     ''')

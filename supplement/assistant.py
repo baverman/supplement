@@ -111,13 +111,13 @@ def parse_import(tokens):
         return '', ''
 
     while True:
-        tid, value = tokens.get(',', '.', 0)
+        tid, value = tokens.get(',', '.', 'as', 0)
         if not tid:
             break
         elif value == '.':
             pks.append(match)
             match = ''
-        elif value == ',':
+        elif value == ',' or value == 'as':
             pks[:] = []
             match = ''
         else:

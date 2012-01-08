@@ -138,6 +138,18 @@ def test_assist_for_import_from_relative_modules(project):
 
     assert 'test' in result
 
+def test_assist_for_import_from_relative_modules_with_aliases(project):
+    project.create_module('package.toimport', '''
+        test = 1
+        boo = 2
+    ''')
+
+    result = do_assist(project, '''
+        from .toimport import boo as foo, t|
+    ''', filename='package/test.py')
+
+    assert 'test' in result
+
 def test_assist_for_import_from_relative_modules_on_real_fs(project):
     import os.path
     root = os.path.dirname(os.path.dirname(__file__))

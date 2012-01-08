@@ -1,5 +1,5 @@
 from bisect import bisect_left as bisect
-from ast import NodeVisitor, Load, parse, Name as AstName
+from ast import NodeVisitor, Load, parse, Name as AstName, dump
 from tokenize import NL, NEWLINE, ERRORTOKEN, INDENT, DEDENT, generate_tokens, TokenError, NAME
 from keyword import iskeyword
 from contextlib import contextmanager
@@ -43,12 +43,13 @@ def check_names(source, tree):
     result = []
     usages, main_scope = NameExtractor().process(tree, IdxNameExtractor(source))
 
-    for scope, name, line, offset in usages:
-        n = scope.get_name(name, line, offset)
-        if not n:
+    for scope, branch, name, line, offset in usages:
+        names = scope.get_names_for_branch(branch, name, line, offset)
+        if not names:
             result.append(((line, offset), name, 'Unknown name (E01): ' + name))
         else:
-            n.usages.append((line, offset))
+            for n in names:
+                n.usages.append((line, offset))
 
     for name in main_scope.get_names():
         if not name.is_used() and not name.name.startswith('_'):
@@ -65,6 +66,7 @@ class Name(object):
         self.usages = []
         self.indirect_use = indirect_use
         self.declared_at_loop = None
+        self.branch = None
 
     def is_used(self):
         if self.indirect_use or self.usages:
@@ -81,6 +83,49 @@ class Name(object):
     def __repr__(self):
         return "Name(%s, %s, %s, %s, %s)" % (self.name, self.line, self.offset,
             self.indirect_use, self.declared_at_loop)
+
+
+class Branch(object):
+    def __init__(self, parent):
+        self.children = []
+        self.descendants = set()
+        self.parent = parent
+        self.names = {}
+        self.orelse = None
+
+        while parent:
+            parent.descendants.add(self)
+            parent = parent.parent
+
+    def add_child(self, child):
+        self.children.append(child)
+        return child
+
+    def add_name(self, name):
+        self.names[name.name] = name
+        name.branch = self
+
+    def create_orelse(self):
+        self.orelse = Branch(self.parent)
+        return self.orelse
+
+    def child_of(self, branch):
+        return branch is self or self in branch.descendants
+
+    def child_of_common_orelse(self, branch):
+        p = branch
+        while p and p.orelse:
+            if self.child_of(p.orelse):
+                return True
+            p = p.parent
+
+        return False
+
+
+class RootBranch(Branch):
+    def __init__(self):
+        Branch.__init__(self, None)
+
 
 MODULE_NAMES = set(('__builtins__', '__doc__', '__file__', '__name__', '__package__'))
 class BuiltinScope(object):
@@ -110,6 +155,8 @@ class Scope(object):
         self.childs = []
         self.passthrough = passthrough
 
+        self.branch = RootBranch()
+
         if parent:
            parent.childs.append(self)
 
@@ -120,6 +167,10 @@ class Scope(object):
             value = name.line, name.offset, name
         self.names.setdefault(name.name, []).append(value)
         name.scope = self
+
+        if self.branch:
+            self.branch.add_name(name)
+
         return name
 
     def get_name(self, name, line=None, offset=None):
@@ -137,6 +188,36 @@ class Scope(object):
             return self.parent.get_name(name)
 
         return None
+
+    def get_names_for_branch(self, branch, name, line=None, offset=None):
+        result = []
+        idx = -1
+        if name in self.names:
+            nnames = self.names[name]
+            if line is not None and self.is_block:
+                value = line, offset, None
+                idx = bisect(nnames, value) - 1
+            elif not self.passthrough:
+                idx = len(nnames) - 1
+
+        while idx >= 0:
+            fname = nnames[idx][2]
+            nbranch = fname.branch
+
+            if nbranch is branch or branch.child_of(nbranch):
+                result.append(fname)
+                break
+            elif nbranch.child_of(branch) or not branch.child_of_common_orelse(nbranch):
+                result.append(fname)
+
+            idx -= 1
+
+        if not result:
+            n = self.parent.get_name(name)
+            if n:
+                return [n]
+
+        return result
 
     def get_names(self):
         for nnames in self.names.values():
@@ -157,6 +238,7 @@ class GetExprEnd(NodeVisitor):
 
 class NameExtractor(NodeVisitor):
     def process(self, root, idx_name_extractor):
+        #print(dump(root))
         self.idx_name_extractor = idx_name_extractor
         self.scope = self.main_scope = Scope(BuiltinScope())
         self.usages = []
@@ -233,21 +315,35 @@ class NameExtractor(NodeVisitor):
             else:
                 self.generic_visit(node)
 
+    def add_usage(self, name, lineno, col_offset, scope=None):
+        scope = scope or self.scope
+        self.usages.append((scope, scope.branch, name, lineno, col_offset))
+
     def visit_AugAssign(self, node):
         if type(node.target) is AstName:
-            self.usages.append((self.scope, node.target.id, node.target.lineno, node.target.col_offset))
+            self.add_usage(node.target.id, node.target.lineno, node.target.col_offset)
 
         self.visit_Assign(node)
 
     def visit_Name(self, node):
         if type(node.ctx) == Load:
-            self.usages.append((self.scope, node.id, node.lineno, node.col_offset))
+            self.add_usage(node.id, node.lineno, node.col_offset)
         else:
             name = self.scope.add_name(Name(node.id, node.lineno, node.col_offset, self.indirect_use),
                 self.effect_starts)
 
             if self.declared_at_loop:
                 name.declared_at_loop = self.declared_at_loop
+
+    def visit_Lambda(self, node):
+        self.scope = Scope(self.scope)
+        self.scope.lineno = node.lineno
+        self.scope.offset = node.col_offset
+        with self.loop():
+            with self.indirect(False):
+                self.generic_visit(node)
+
+        self.scope = self.scope.parent
 
     def visit_FunctionDef(self, node):
         line, offset = self.idx_name_extractor.get(node.lineno, 0)
@@ -259,6 +355,7 @@ class NameExtractor(NodeVisitor):
         with self.loop():
             with self.indirect(False):
                 self.generic_visit(node)
+
         self.scope = self.scope.parent
 
     def visit_ClassDef(self, node):
@@ -296,8 +393,25 @@ class NameExtractor(NodeVisitor):
         if node.kwarg:
             self.scope.add_name(Name(node.kwarg, self.scope.lineno, self.scope.offset, True))
 
-        with self.indirect(True):
-            self.generic_visit(node)
+        for i, arg in enumerate(node.args):
+            line, offset = self.idx_name_extractor.get(self.scope.lineno, i+1)
+            self.scope.add_name(Name(arg.arg, line, offset, False))
+
+    def visit_If(self, node):
+        self.visit(node.test)
+
+        oldbranch = self.scope.branch
+        branch = oldbranch.add_child(Branch(oldbranch))
+
+        self.scope.branch = branch
+        for r in node.body:
+            self.visit(r)
+
+        self.scope.branch = branch.create_orelse()
+        for r in node.orelse:
+            self.visit(r)
+
+        self.scope.branch = oldbranch
 
     def is_main_scope(self):
         return self.scope is self.main_scope

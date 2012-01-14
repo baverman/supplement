@@ -339,9 +339,10 @@ class NameExtractor(NodeVisitor):
         self.scope = Scope(self.scope)
         self.scope.lineno = node.lineno
         self.scope.offset = node.col_offset
-        with self.loop():
-            with self.indirect(False):
-                self.generic_visit(node)
+        with self.effect(None):
+            with self.loop():
+                with self.indirect(False):
+                    self.generic_visit(node)
 
         self.scope = self.scope.parent
 

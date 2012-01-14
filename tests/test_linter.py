@@ -228,3 +228,10 @@ def test_lambda():
         def foo():
             return lambda boo, bar: boo + bar
     ''')
+
+def test_lambda_assigned_to_var():
+    assert_names('''
+        def foo():
+            $result$ = lambda boo, bar: boo + bar
+    ''')
+

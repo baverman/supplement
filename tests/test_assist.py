@@ -701,3 +701,21 @@ def test_get_location_for_assigned_names(project):
     ''')
     line, fname = get_location(project, source, pos, None)
     assert line == 1
+
+def test_assist_for_class_parents(project):
+    result = do_assist(project, '''
+        class Boo(ob|
+    ''')
+    assert 'object' in result
+
+    result = do_assist(project, '''
+        class Boo(object, di|
+    ''')
+    assert 'dict' in result
+
+    result = do_assist(project, '''
+        class Foo(object): pass
+
+        class Boo(F|
+    ''')
+    assert 'Foo' in result

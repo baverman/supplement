@@ -174,6 +174,7 @@ def parse_expr(tokens, end=None):
     match = ''
     full = []
     is_arg = True
+    is_class = False
 
     while True:
         tid, value = tokens.next()
@@ -196,7 +197,7 @@ def parse_expr(tokens, end=None):
                 continue
             elif state == 'stop':
                 if args[2]:
-                    fctx = expr[:-1]
+                    fctx = expr[:-1] if not is_class else None
                 else:
                     fctx = None
 
@@ -211,6 +212,7 @@ def parse_expr(tokens, end=None):
                     return args
         elif tid == NAME and not iskeyword(value):
             match = value
+
             continue
         elif value == '.':
             is_arg = False
@@ -223,6 +225,8 @@ def parse_expr(tokens, end=None):
             expr[:] = []
             match = ''
             is_arg = value == ','
+            if tid == NAME and value == 'class':
+                is_class = True
 
     if end:
         return 'stop', (expr, match, is_arg)

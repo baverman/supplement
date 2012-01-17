@@ -26,3 +26,15 @@ def test_simple_assist():
 
     match, result = env.assist('.', source, len(source), 'test.py')
     assert result == ['popen', 'pow', 'print', 'property']
+
+@pytest.mark.slow
+def test_prepare():
+    env = Environment()
+    env.prepare()
+
+    source = cleantabs('''
+        from os import popen
+        p''')
+
+    match, result = env.assist('.', source, len(source), 'test.py')
+    assert result == ['popen', 'pow', 'print', 'property']

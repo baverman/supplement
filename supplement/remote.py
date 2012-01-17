@@ -1,6 +1,8 @@
 import sys
 import os.path
 import time
+
+from threading import Thread, Lock
 from cPickle import dumps
 
 class Environment(object):
@@ -17,7 +19,10 @@ class Environment(object):
         self.executable = executable or sys.executable
         self.env = env
 
-    def run(self):
+        self.prepare_thread = None
+        self.prepare_lock = Lock()
+
+    def _run(self):
         from subprocess import Popen
         from multiprocessing.connection import Client, arbitrary_address
 
@@ -47,6 +52,31 @@ class Environment(object):
                 time.sleep(0.3)
             else:
                 break
+
+    def _threaded_run(self):
+        try:
+            self._run()
+        finally:
+            self.prepare_thread = None
+
+    def prepare(self):
+        with self.prepare_lock:
+            if self.prepare_thread:
+                return
+
+            if hasattr(self, 'conn'):
+                return
+
+            self.prepare_thread = Thread(target=self._threaded_run)
+            self.prepare_thread.start()
+
+    def run(self):
+        with self.prepare_lock:
+            if self.prepare_thread:
+                self.prepare_thread.join()
+
+            if not hasattr(self, 'conn'):
+                self._run()
 
     def _call(self, name, *args, **kwargs):
         try:

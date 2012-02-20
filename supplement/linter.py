@@ -290,6 +290,9 @@ class NameExtractor(NodeVisitor):
 
     def visit_ImportFrom(self, node):
         idx = 0
+        if node.module == '__future__':
+            return
+
         if node.module:
             idx += node.module.count('.') + 1
 

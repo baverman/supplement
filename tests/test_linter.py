@@ -235,3 +235,7 @@ def test_lambda_assigned_to_var():
             $result$ = lambda boo, bar: boo + bar
     ''')
 
+def test_lambda_assigned_to_var():
+    assert_names('''
+        from __future__ import absolute_import
+    ''')

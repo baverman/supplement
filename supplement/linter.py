@@ -290,6 +290,9 @@ class NameExtractor(NodeVisitor):
 
     def visit_ImportFrom(self, node):
         idx = 0
+        if node.module == '__future__':
+            return
+
         if node.module:
             idx += node.module.count('.') + 1
 
@@ -381,7 +384,21 @@ class NameExtractor(NodeVisitor):
     def visit_For(self, node):
         start = node.body[0]
         with self.loop((start.lineno, start.col_offset), self.get_expr_end(node)):
-            self.generic_visit(node)
+            self.visit(node.target)
+            self.visit(node.iter)
+
+            oldbranch = self.scope.branch
+            branch = oldbranch.add_child(Branch(oldbranch))
+
+            self.scope.branch = branch
+            for r in node.body:
+                self.visit(r)
+
+            self.scope.branch = branch.create_orelse()
+            for r in node.orelse:
+                self.visit(r)
+
+            self.scope.branch = oldbranch
 
     def visit_While(self, node):
         with self.loop((node.lineno, node.col_offset), self.get_expr_end(node)):

@@ -235,3 +235,19 @@ def test_lambda_assigned_to_var():
             $result$ = lambda boo, bar: boo + bar
     ''')
 
+def test_lambda_assigned_to_var():
+    assert_names('''
+        from __future__ import absolute_import
+    ''')
+
+def test_for_loop_alt_logic_branches():
+    assert_names('''
+        def foo():
+            for _ in []:
+                bar = 1
+                break
+            else:
+                bar = 2
+
+            print(bar)
+    ''')

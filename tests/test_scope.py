@@ -130,3 +130,24 @@ def test_non_continous_scope(project):
         10: '',
         11: 'Klass',
     }, False)
+
+def test_scope_with_decorators(project):
+    source = cleantabs("""
+        @decorator
+        class Cls(object):
+            def m1(self):
+                pass
+
+            @staticmethod
+            def m2():
+                pass
+    """)
+
+    check_scope(project, source, {
+        1: 'Cls',
+        2: 'Cls',
+        3: 'Cls.m1',
+        5: 'Cls.m1',
+        6: 'Cls.m2',
+        7: 'Cls.m2',
+    }, True)

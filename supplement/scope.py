@@ -212,7 +212,7 @@ def collect_scope_ranges(root, ranges, toclose, parent=None):
         ranges[1].append(lrange)
         parent = lrange
 
-    for n in ast.iter_child_nodes(root):
+    for n in root.body if isscope else ast.iter_child_nodes(root):
         if toclose:
             for r in toclose:
                 r[1] = n.lineno

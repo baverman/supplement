@@ -249,5 +249,35 @@ def test_for_loop_alt_logic_branches():
             else:
                 bar = 2
 
-            print bar
+            map(bar)
+    ''')
+
+def test_alternative_names_in_try_blocks():
+    assert_names('''
+        def foo():
+            try:
+                bar = 1
+            except:
+                bar = 2
+                $boo$ = 4
+            except:
+                bar = 3
+                map(!boo!)
+
+            map(bar)
+    ''')
+
+def test_alternative_names_in_try_blocks_with_exception_vars():
+    assert_names('''
+        def foo():
+            try:
+                bar = 1
+            except Exception as e:
+                bar = 2
+                map(e)
+            except:
+                bar = 3
+                map(!e!)
+
+            map(bar)
     ''')

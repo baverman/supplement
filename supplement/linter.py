@@ -3,6 +3,7 @@ from ast import NodeVisitor, Load, parse, Name as AstName, dump
 from tokenize import NL, NEWLINE, ERRORTOKEN, INDENT, DEDENT, generate_tokens, TokenError, NAME
 from keyword import iskeyword
 from contextlib import contextmanager
+from itertools import chain
 
 from .fixer import try_to_fix, sanitize_encoding
 
@@ -83,6 +84,19 @@ class Name(object):
     def __repr__(self):
         return "Name(%s, %s, %s, %s, %s)" % (self.name, self.line, self.offset,
             self.indirect_use, self.declared_at_loop)
+
+
+#def dump_branches(root, level=0):
+#    if not root:
+#        return
+#
+#    print '   ' * level, 'main'
+#    print '   ' * (level + 1), root.names
+#    for c in root.children:
+#        dump_branches(c, level+1)
+#
+#    print '   ' * level, 'else'
+#    dump_branches(root.orelse, level+1)
 
 
 class Branch(object):
@@ -384,21 +398,7 @@ class NameExtractor(NodeVisitor):
     def visit_For(self, node):
         start = node.body[0]
         with self.loop((start.lineno, start.col_offset), self.get_expr_end(node)):
-            self.visit(node.target)
-            self.visit(node.iter)
-
-            oldbranch = self.scope.branch
-            branch = oldbranch.add_child(Branch(oldbranch))
-
-            self.scope.branch = branch
-            for r in node.body:
-                self.visit(r)
-
-            self.scope.branch = branch.create_orelse()
-            for r in node.orelse:
-                self.visit(r)
-
-            self.scope.branch = oldbranch
+            self.process_alternates([node.target, node.iter], node.body, node.orelse)
 
     def visit_While(self, node):
         with self.loop((node.lineno, node.col_offset), self.get_expr_end(node)):
@@ -413,24 +413,44 @@ class NameExtractor(NodeVisitor):
 
         self.generic_visit(node)
 
-    def visit_If(self, node):
-        self.visit(node.test)
+    def process_alternates(self, before, main, orelse):
+        for node in before:
+            self.visit(node)
 
         oldbranch = self.scope.branch
         branch = oldbranch.add_child(Branch(oldbranch))
 
         self.scope.branch = branch
-        for r in node.body:
+        for r in main:
             self.visit(r)
 
         self.scope.branch = branch.create_orelse()
-        for r in node.orelse:
+        for r in orelse:
             self.visit(r)
+
+        self.scope.branch = oldbranch
+
+    def visit_If(self, node):
+        self.process_alternates([node.test], node.body, node.orelse)
+
+    def visit_TryExcept(self, node):
+        oldbranch = self.scope.branch
+        branch = oldbranch.add_child(Branch(oldbranch))
+
+        self.scope.branch = branch
+        for r in chain(node.body, node.orelse):
+            self.visit(r)
+
+        for h in node.handlers:
+            branch = branch.create_orelse()
+            self.scope.branch = branch
+            self.visit(h)
 
         self.scope.branch = oldbranch
 
     def is_main_scope(self):
         return self.scope is self.main_scope
+
 
 class TokenGenerator(object):
     def __init__(self, lines):

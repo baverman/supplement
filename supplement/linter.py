@@ -60,7 +60,7 @@ def check_names(source, tree):
 
 
 class Name(object):
-    def __init__(self, name, line, offset, indirect_use=False):
+    def __init__(self, name, line, offset, indirect_use=False, is_local=False):
         self.name = name
         self.line = line
         self.offset = offset
@@ -68,6 +68,7 @@ class Name(object):
         self.indirect_use = indirect_use
         self.declared_at_loop = None
         self.branch = None
+        self.is_local = is_local
 
     def is_used(self):
         if self.indirect_use or self.usages:
@@ -203,7 +204,7 @@ class Scope(object):
 
         return None
 
-    def get_names_for_branch(self, branch, name, line=None, offset=None):
+    def _get_branch_names(self, branch, name, line=None, offset=None):
         result = []
         idx = -1
         if name in self.names:
@@ -226,6 +227,10 @@ class Scope(object):
 
             idx -= 1
 
+        return result
+
+    def get_names_for_branch(self, branch, name, line=None, offset=None):
+        result = self._get_branch_names(branch, name, line, offset)
         if not result:
             n = self.parent.get_name(name)
             if n:
@@ -242,6 +247,26 @@ class Scope(object):
             for name in c.get_names():
                 yield name
 
+
+class PassScope(Scope):
+    def __init__(self, parent=None, is_block=True, passthrough=False):
+        Scope.__init__(self, parent, is_block, passthrough)
+        self.branch = parent.branch
+
+    def add_name(self, name, starts=None):
+        if name.is_local:
+            Scope.add_name(self, name, starts)
+        else:
+            self.parent.add_name(name, starts)
+
+    def get_names_for_branch(self, branch, name, line=None, offset=None):
+        result = self._get_branch_names(branch, name, line, offset)
+        if not result:
+            return self.parent.get_names_for_branch(branch, name, line, offset)
+
+        return result
+
+
 class GetExprEnd(NodeVisitor):
     def __call__(self, node):
         self.visit(node)
@@ -249,6 +274,7 @@ class GetExprEnd(NodeVisitor):
 
     def visit_Name(self, node):
         self.last_loc = node.lineno, node.col_offset + len(node.id)
+
 
 class NameExtractor(NodeVisitor):
     def process(self, root, idx_name_extractor):
@@ -262,6 +288,8 @@ class NameExtractor(NodeVisitor):
         self.declared_at_loop = False
 
         self.generic_visit(root)
+
+        #dump_branches(self.scope.childs[0].branch)
 
         return self.usages, self.main_scope
 
@@ -346,7 +374,9 @@ class NameExtractor(NodeVisitor):
         if type(node.ctx) == Load:
             self.add_usage(node.id, node.lineno, node.col_offset)
         else:
-            name = self.scope.add_name(Name(node.id, node.lineno, node.col_offset, self.indirect_use),
+            name = self.scope.add_name(
+                Name(node.id, node.lineno, node.col_offset, self.indirect_use,
+                    getattr(node, 'is_local', False)),
                 self.effect_starts)
 
             if self.declared_at_loop:
@@ -447,6 +477,32 @@ class NameExtractor(NodeVisitor):
             self.visit(h)
 
         self.scope.branch = oldbranch
+
+    def visit_ExceptHandler(self, node):
+        self.scope = PassScope(self.scope)
+        self.scope.lineno = node.lineno
+        self.scope.offset = node.col_offset
+
+        if node.name:
+            node.name.is_local = True
+
+        with self.indirect(False):
+            self.generic_visit(node)
+
+        self.scope = self.scope.parent
+
+    def visit_With(self, node):
+        self.scope = PassScope(self.scope)
+        self.scope.lineno = node.lineno
+        self.scope.offset = node.col_offset
+
+        if node.optional_vars:
+            node.optional_vars.is_local = True
+
+        with self.indirect(False):
+            self.generic_visit(node)
+
+        self.scope = self.scope.parent
 
     def is_main_scope(self):
         return self.scope is self.main_scope

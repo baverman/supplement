@@ -170,8 +170,10 @@ def test_complex_if():
             boo = 1
             if True:
                 boo = 2
+                $bar$ = 1
             elif False:
                 boo = 1
+                map(!bar!)
             else:
                 if True:
                     boo = 0
@@ -288,4 +290,28 @@ def test_function_name_with_decorator():
             @!bar!(arg=map)
             def $boo$():
                 pass
+    ''')
+
+def test_with_statement_local_scope():
+    assert_names('''
+        def foo():
+            with open('file') as f:
+                map(f)
+                bar = 1
+
+            map(!f!)
+            map(bar)
+    ''')
+
+def test_except_statement_local_scope():
+    assert_names('''
+        def foo():
+            try:
+                pass
+            except Exception as e:
+                bar = 1
+                map(e)
+
+            map(!e!)
+            map(bar)
     ''')

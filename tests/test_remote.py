@@ -4,7 +4,8 @@ from supplement.remote import Environment
 
 from .helpers import cleantabs
 
-def est_project_config():
+@pytest.mark.xfail
+def test_project_config():
     env = Environment()
     env.configure_project('.', {'libs':['/usr/lib/python2.7/site-packages/exo-0.6']})
 

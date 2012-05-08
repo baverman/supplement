@@ -364,7 +364,7 @@ class NameExtractor(NodeVisitor):
         self.scope = self.scope.parent
 
     def visit_FunctionDef(self, node):
-        line, offset = self.idx_name_extractor.get(node.lineno, 0)
+        line, offset = self.idx_name_extractor.get_first_after(node.lineno, 'def')
         self.scope.add_name(Name(node.name, line, offset,
             self.indirect_use or self.is_main_scope()))
         self.scope = Scope(self.scope)
@@ -377,7 +377,7 @@ class NameExtractor(NodeVisitor):
         self.scope = self.scope.parent
 
     def visit_ClassDef(self, node):
-        line, offset = self.idx_name_extractor.get(node.lineno, 0)
+        line, offset = self.idx_name_extractor.get_first_after(node.lineno, 'class')
         self.scope.add_name(Name(node.name, line, offset,
             self.indirect_use or self.is_main_scope()))
         self.scope = Scope(self.scope, passthrough=True)
@@ -518,5 +518,17 @@ class IdxNameExtractor(object):
                 i += 1
                 if i == idx:
                     return start[0] + lineno - 1, start[1]
+
+        return lineno, 0
+
+    def get_first_after(self, lineno, keyword):
+        tg = TokenGenerator(self.lines[lineno-1:])
+        while True:
+            tid, value, start, _ = tg.next()
+            if value == keyword:
+                while True:
+                    tid, value, start, _ = tg.next()
+                    if tid == NAME and not iskeyword(value):
+                        return start[0] + lineno - 1, start[1]
 
         return lineno, 0

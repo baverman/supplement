@@ -281,3 +281,11 @@ def test_alternative_names_in_try_blocks_with_exception_vars():
 
             map(bar)
     ''')
+
+def test_function_name_with_decorator():
+    assert_names('''
+        def foo():
+            @!bar!(arg=map)
+            def $boo$():
+                pass
+    ''')

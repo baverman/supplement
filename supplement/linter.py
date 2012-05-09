@@ -58,6 +58,14 @@ def check_names(source, tree):
 
     return result
 
+def extract_names_from_node(node):
+    if isinstance(node, AstName):
+        yield node
+    else:
+        for n in node.elts:
+            for name in extract_names_from_node(n):
+                yield name
+
 
 class Name(object):
     def __init__(self, name, line, offset, indirect_use=False, is_local=False):
@@ -504,7 +512,8 @@ class NameExtractor(NodeVisitor):
         self.scope.offset = node.col_offset
 
         if node.optional_vars:
-            node.optional_vars.is_local = True
+            for name in extract_names_from_node(node.optional_vars):
+                name.is_local = True
 
         with self.indirect(False):
             self.generic_visit(node)

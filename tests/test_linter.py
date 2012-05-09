@@ -303,6 +303,32 @@ def test_with_statement_local_scope():
             map(bar)
     ''')
 
+def test_multiple_with_statement_local_scope():
+    assert_names('''
+        def foo():
+            with open('file') as f, open('boo') as boo:
+                map(f)
+                map(boo)
+                bar = 1
+
+            map(!f!)
+            map(!boo!)
+            map(bar)
+    ''')
+
+def test_with_statement_tuple_target_local_scope():
+    assert_names('''
+        def foo():
+            with open('file') as (f, boo):
+                map(f)
+                map(boo)
+                bar = 1
+
+            map(!f!)
+            map(!boo!)
+            map(bar)
+    ''')
+
 def test_except_statement_local_scope():
     assert_names('''
         def foo():

@@ -263,9 +263,9 @@ class PassScope(Scope):
 
     def add_name(self, name, starts=None):
         if name.is_local:
-            Scope.add_name(self, name, starts)
+            return Scope.add_name(self, name, starts)
         else:
-            self.parent.add_name(name, starts)
+            return self.parent.add_name(name, starts)
 
     def get_names_for_branch(self, branch, name, line=None, offset=None):
         result = self._get_branch_names(branch, name, line, offset)

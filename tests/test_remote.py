@@ -4,9 +4,12 @@ from supplement.remote import Environment
 
 from .helpers import cleantabs
 
+def get_env():
+    return Environment(env={'PYTHONPATH':'.'})
+
 @pytest.mark.xfail
 def test_project_config():
-    env = Environment()
+    env = get_env()
     env.configure_project('.', {'libs':['/usr/lib/python2.7/site-packages/exo-0.6']})
 
     source = cleantabs('''
@@ -18,7 +21,7 @@ def test_project_config():
 
 @pytest.mark.slow
 def test_simple_assist():
-    env = Environment()
+    env = get_env()
 
     source = cleantabs('''
         from os import popen
@@ -29,7 +32,7 @@ def test_simple_assist():
 
 @pytest.mark.slow
 def test_prepare():
-    env = Environment()
+    env = get_env()
     env.prepare()
 
     source = cleantabs('''

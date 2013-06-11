@@ -1,5 +1,8 @@
 import sys
 import os.path
+import logging
+
+logger = logging.getLogger('server')
 
 try:
     from cPickle import loads, dumps
@@ -64,8 +67,7 @@ class Server(object):
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception('%s error', name)
             is_ok = False
             result = e.__class__.__name__, str(e)
 
@@ -103,8 +105,7 @@ class Server(object):
                 except EOFError:
                     break
                 except Exception:
-                    import traceback
-                    traceback.print_exc()
+                    logger.exception('IO error')
                     break
 
                 if args[0] == 'close':
@@ -115,24 +116,21 @@ class Server(object):
                     try:
                         self.conn.send_bytes(dumps((result, is_ok), 2))
                     except:
-                        import traceback
-                        traceback.print_exc()
+                        logger.exception('Send error')
 
 if __name__ == '__main__':
-    import os
     from multiprocessing.connection import Listener
-    import logging
 
     if 'SUPP_LOG_LEVEL' in os.environ:
         level = int(os.environ['SUPP_LOG_LEVEL'])
     else:
         level = logging.ERROR
 
-    logger = logging.getLogger('supplement')
-    logger.setLevel(level)
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
-    logger.addHandler(handler)
+    if 'SUPP_LOG_FILE' in os.environ:
+        logging.basicConfig(filename=os.environ['SUPP_LOG_FILE'],
+            format="%(asctime)s %(name)s %(levelname)s: %(message)s", level=level)
+    else:
+        logging.basicConfig(format="%(name)s %(levelname)s: %(message)s", level=level)
 
     listener = Listener(sys.argv[1])
     conn = listener.accept()

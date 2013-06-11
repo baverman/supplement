@@ -8,16 +8,19 @@ from cPickle import dumps
 class Environment(object):
     """Supplement server client"""
 
-    def __init__(self, executable=None, env=None):
+    def __init__(self, executable=None, env=None, logfile=None):
         """Environment constructor
 
         :param executable: path to python executable. May be path to virtualenv interpreter
               start script like ``/path/to/venv/bin/python``.
 
         :param env: environment variables dict, e.g. ``DJANGO_SETTINGS_MODULE`` value.
+
+        :param logfile: explicit log file, can be passed via environment SUPP_LOG_FILE
         """
         self.executable = executable or sys.executable
         self.env = env
+        self.logfile = logfile
 
         self.prepare_thread = None
         self.prepare_lock = Lock()
@@ -34,10 +37,12 @@ class Environment(object):
         supp_server = os.path.join(os.path.dirname(__file__), 'server.py')
         args = [self.executable, supp_server, addr]
 
-        env = None
+        env = os.environ.copy()
         if self.env:
-            env = os.environ.copy()
             env.update(self.env)
+
+        if self.logfile and 'SUPP_LOG_FILE' not in env:
+            env['SUPP_LOG_FILE'] = self.logfile
 
         self.proc = Popen(args, env=env)
 

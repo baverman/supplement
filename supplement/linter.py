@@ -286,7 +286,7 @@ class GetExprEnd(NodeVisitor):
 
 class NameExtractor(NodeVisitor):
     def process(self, root, idx_name_extractor):
-        #print(dump(root))
+        # print(dump(root))
         self.idx_name_extractor = idx_name_extractor
         self.scope = self.main_scope = Scope(BuiltinScope())
         self.usages = []
@@ -431,6 +431,12 @@ class NameExtractor(NodeVisitor):
             self.generic_visit(node)
 
     def visit_ListComp(self, node):
+        self.visit_GeneratorExp(node)
+
+    def visit_SetComp(self, node):
+        self.visit_GeneratorExp(node)
+
+    def visit_DictComp(self, node):
         self.visit_GeneratorExp(node)
 
     def visit_For(self, node):

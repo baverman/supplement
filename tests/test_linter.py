@@ -134,6 +134,13 @@ def test_generator_and_list_expressions():
             [rr for rr in (1,2,3)]
     ''')
 
+def test_set_and_dict_expressions():
+    assert_names('''
+        def bar():
+            {r for r in (1,2,3)}
+            {r: r for r in (1,2,3)}
+    ''')
+
 def test_class_scope_must_not_hide_global_names():
     assert_names('''
         from . import bar

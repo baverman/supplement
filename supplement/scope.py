@@ -199,7 +199,7 @@ class Scope(object):
 
 
 SCOPE_CLASSES = (ast.ClassDef, ast.FunctionDef, ast.ExceptHandler, ast.With, ast.Module)
-BLOCK_CLASSES = SCOPE_CLASSES + (ast.TryExcept, ast.TryFinally, ast.If, ast.While, ast.For)
+BLOCK_CLASSES = SCOPE_CLASSES + (ast.Try, ast.If, ast.While, ast.For)
 
 def collect_scope_ranges(root, ranges, toclose, parent=None):
     if not isinstance(root, BLOCK_CLASSES):

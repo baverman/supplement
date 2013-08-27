@@ -41,3 +41,15 @@ def test_prepare():
 
     match, result = env.assist('.', source, len(source), 'test.py')
     assert result == ['popen', 'pow', 'print', 'property']
+
+@pytest.mark.slow
+def test_eval():
+    env = get_env()
+    env.prepare()
+
+    source = cleantabs('''
+        import sys
+        return sys.path''')
+
+    result = env.eval(source)
+    assert any('site-packages' in r for r in result)

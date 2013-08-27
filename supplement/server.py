@@ -96,6 +96,13 @@ class Server(object):
     def check_syntax(self, source):
         return check_syntax(source)
 
+    def eval(self, source):
+        ctx = {}
+        source = '\n'.join('    ' + r for r in source.splitlines())
+        source = 'def boo():\n{}\nresult = boo()'.format(source)
+        exec(source, ctx)
+        return ctx['result']
+
     def run(self):
         conn = self.conn
         while True:

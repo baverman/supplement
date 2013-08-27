@@ -188,6 +188,9 @@ class Environment(object):
         """
         return self._call('get_scope', project_path, source, lineno, filename, continous=continous)
 
+    def eval(self, source):
+        return self._call('eval', source)
+
     def close(self):
         """Shutdown server"""
 
